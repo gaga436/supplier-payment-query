@@ -262,18 +262,26 @@ class QueryEngine:
             elif "SUM" in sql.upper():
                 total = rows[0].get(list(rows[0].keys())[0])
 
+        # 转换为浮点数防止 SQLite 返回字符串导致格式化报错
+        def _to_float(v):
+            if v is None: return 0.0
+            try: return float(v)
+            except: return 0.0
+
         # 聚合查询
         if count == 1 and total is not None:
-            return f"查询结果：共 {total:,.2f} 元"
+            return f"查询结果：共 {_to_float(total):,.2f} 元"
 
         # 普通列表查询
         if "COUNT" in sql.upper() and "总笔数" in rows[0]:
             total_count = rows[0]["总笔数"]
             return f"共查询到 {total_count} 条付款记录。"
 
-        if "SUM" in sql.upper() or "总金额" in rows[0]:
-            amount = rows[0].get("总金额") or rows[0].get(list(rows[0].keys())[0], 0)
-            return f"查询结果：总金额为 {amount:,.2f} 元"
+        if "SUM" in sql.upper() or any("金额" in k or "总额" in k for k in rows[0]):
+            # 找第一个金额相关的字段
+            amount_key = next((k for k in rows[0] if "金额" in k or "总额" in k), list(rows[0].keys())[0])
+            amount = rows[0].get(amount_key, 0)
+            return f"查询结果：总金额为 {_to_float(amount):,.2f} 元"
 
         if count <= 50:
             statuses = set(r.get("付款状态", "") for r in rows if "付款状态" in r)

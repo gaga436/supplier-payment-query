@@ -1,0 +1,15 @@
+[Unit]
+Description=供应商付款查询系统 - 博西家电定制版
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/supplier-payment-query
+ExecStart=/home/ubuntu/supplier-payment-query/venv/bin/python -m uvicorn backend.main:app --host 0.0.0.0 --port 18000
+Restart=always
+RestartSec=5
+EnvironmentFile=/home/ubuntu/supplier-payment-query/.env
+
+[Install]
+WantedBy=multi-user.target
