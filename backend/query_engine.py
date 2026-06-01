@@ -11,7 +11,12 @@ import logging
 import os
 import re
 from typing import Any
-from openai import OpenAI
+try:
+    from openai import OpenAI
+    _HAVE_OPENAI = True
+except ImportError:
+    OpenAI = None
+    _HAVE_OPENAI = False
 from dotenv import load_dotenv
 
 load_dotenv()

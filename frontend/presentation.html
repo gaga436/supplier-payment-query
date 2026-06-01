@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BSH 博西家电 · 供应商付款智能查询系统</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+:root{--blue:#1a56db;--blue2:#0f3a8e;--teal:#06b6d4;--bg:#0f172a;--card:#1e293b;--text:#f1f5f9;--text2:#94a3b8;--border:rgba(255,255,255,0.1);--radius:16px}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{font-family:'Inter','PingFang SC','Microsoft YaHei',sans-serif;background:#fff;color:#1e293b;overflow-x:hidden}
+
+nav{position:fixed;top:0;left:0;right:0;z-index:100;padding:16px 48px;display:flex;justify-content:space-between;align-items:center;transition:all 0.3s}
+nav.scrolled{background:rgba(255,255,255,0.95);backdrop-filter:blur(20px);box-shadow:0 1px 3px rgba(0,0,0,0.08)}
+.nav-logo{font-weight:700;font-size:18px}.nav-logo span{color:var(--blue)}
+.nav-links{display:flex;gap:28px;align-items:center}
+.nav-links a{text-decoration:none;color:#64748b;font-size:14px;font-weight:500}
+.nav-links a:hover{color:var(--blue)}
+.btn-nav{padding:8px 20px;background:linear-gradient(135deg,var(--blue),var(--teal));color:#fff!important;border-radius:100px;font-weight:600!important}
+
+.hero{min-height:100vh;background:var(--bg);background-image:radial-gradient(ellipse at 20% 50%,rgba(26,86,219,0.12) 0%,transparent 60%),radial-gradient(ellipse at 80% 20%,rgba(6,182,212,0.08) 0%,transparent 50%);display:flex;align-items:center;justify-content:center;padding:120px 48px 80px;position:relative}
+.hero-content{max-width:1100px;width:100%;text-align:center;position:relative;z-index:1}
+.hero-badge{display:inline-flex;align-items:center;gap:8px;padding:8px 20px;background:rgba(26,86,219,0.1);border:1px solid rgba(26,86,219,0.2);border-radius:100px;color:#93c5fd;font-size:13px;font-weight:500;margin-bottom:28px;animation:fadeInUp 0.6s ease}
+.hero-badge .dot{width:8px;height:8px;background:#10b981;border-radius:50%;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}
+@keyframes fadeInUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+.hero h1{font-size:clamp(36px,5vw,64px);font-weight:800;color:white;line-height:1.15;margin-bottom:20px;animation:fadeInUp 0.6s ease 0.1s both}
+.hero h1 span{background:linear-gradient(135deg,#60a5fa,#06b6d4);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.hero p{font-size:clamp(15px,1.8vw,20px);color:var(--text2);max-width:600px;margin:0 auto 36px;line-height:1.6;animation:fadeInUp 0.6s ease 0.2s both}
+.hero-buttons{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;animation:fadeInUp 0.6s ease 0.3s both}
+.btn{padding:14px 28px;border-radius:100px;font-size:15px;font-weight:600;text-decoration:none;transition:all 0.3s;display:inline-flex;align-items:center;gap:8px}
+.btn-primary{background:linear-gradient(135deg,var(--blue),var(--teal));color:white;box-shadow:0 4px 20px rgba(26,86,219,0.3)}
+.btn-primary:hover{transform:translateY(-2px);box-shadow:0 8px 30px rgba(26,86,219,0.4)}
+.btn-outline{border:1px solid rgba(255,255,255,0.15);color:#e2e8f0}
+.btn-outline:hover{background:rgba(255,255,255,0.05)}
+
+.section{padding:90px 48px;max-width:1100px;margin:0 auto}
+.section-title{text-align:center;margin-bottom:56px}
+.section-title h2{font-size:32px;font-weight:700;margin-bottom:14px}
+.section-title p{color:#64748b;font-size:16px;max-width:520px;margin:0 auto;line-height:1.6}
+.section-title .accent{background:linear-gradient(135deg,var(--blue),var(--teal));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:20px}
+.card{background:white;border-radius:var(--radius);padding:32px;box-shadow:0 1px 3px rgba(0,0,0,0.06);border:1px solid #e2e8f0;transition:all 0.3s;position:relative}
+.card::before{content:'';position:absolute;top:0;left:0;width:100%;height:3px;background:linear-gradient(135deg,var(--blue),var(--teal));opacity:0;transition:opacity 0.3s}
+.card:hover{transform:translateY(-4px);box-shadow:0 12px 40px rgba(0,0,0,0.08)}
+.card:hover::before{opacity:1}
+.card-icon{width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;margin-bottom:16px}
+.card h3{font-size:17px;font-weight:600;margin-bottom:8px}
+.card p{font-size:13px;color:#64748b;line-height:1.7}
+
+.demo-section{background:#f8fafc;padding:90px 48px}
+.demo-inner{max-width:1100px;margin:0 auto}
+.slides{display:flex;flex-direction:column;gap:8px}
+.slides .s{background:var(--bg);border-radius:14px;padding:36px;color:white;min-height:240px;display:flex;flex-direction:column;justify-content:center}
+.slides .s .tag{color:#93c5fd;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:2px;margin-bottom:10px}
+.slides .s h2{font-size:24px;margin-bottom:12px}
+.slides .s p{color:var(--text2);line-height:1.7;font-size:14px}
+
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:20px;margin-top:48px}
+.stat-card{background:var(--bg);border-radius:var(--radius);padding:32px;text-align:center;color:white}
+.stat-num{font-size:36px;font-weight:800;background:linear-gradient(135deg,#60a5fa,#06b6d4);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.stat-lbl{color:var(--text2);font-size:13px;margin-top:6px}
+
+.arch-row{display:flex;align-items:center;justify-content:center;gap:20px;flex-wrap:wrap}
+.arch-box{padding:16px 28px;border-radius:12px;font-weight:600;font-size:14px;text-align:center;min-width:120px}
+.arch-box.p{background:var(--blue);color:white}.arch-box.l{background:#dbeafe;color:var(--blue2)}
+.arch-box.s{background:#d1fae5;color:#065f46}.arch-box.w{background:#fef3c7;color:#92400e}
+.arch-arrow{font-size:22px;color:#94a3b8}
+
+.cta{background:var(--bg);padding:72px 48px;text-align:center}
+.cta h2{color:white;font-size:28px;margin-bottom:14px}
+.cta p{color:var(--text2);margin-bottom:28px}
+footer{background:var(--bg);color:var(--text2);text-align:center;padding:40px;font-size:13px;border-top:1px solid var(--border)}
+@media(max-width:640px){nav{padding:12px 20px}.section,.demo-section{padding:50px 20px}.hero{padding:80px 20px 50px}}
+</style>
+</head>
+<body>
+<nav id="navbar"><div class="nav-logo">BSH <span>· 博西家电</span></div><div class="nav-links"><a href="#features">功能</a><a href="#demo">演示</a><a href="#tech">架构</a><a href="http://43.156.67.190:18000" target="_blank" class="btn-nav">🚀 立即体验</a></div></nav>
+
+<section class="hero">
+  <div class="hero-content">
+    <div class="hero-badge"><span class="dot"></span> BSH 博西家电 · 内部部署</div>
+    <h1>供应商付款<br><span>智能查询系统</span></h1>
+    <p>博西家电专属供应商付款管理平台。用自然语言对话的方式，<br>一秒获取供应商付款信息。</p>
+    <div class="hero-buttons"><a href="http://43.156.67.190:18000" target="_blank" class="btn btn-primary">✨ 立即体验</a><a href="#features" class="btn btn-outline">了解更多 →</a></div>
+  </div>
+</section>
+
+<section class="section" id="features">
+  <div class="section-title"><h2>核心功能</h2><p>四大能力，让财务查询效率提升 <strong class="accent">10 倍</strong></p></div>
+  <div class="grid">
+    <div class="card"><div class="card-icon" style="background:#dbeafe;">🤖</div><h3>AI 自然语言查询</h3><p>直接输入中文，AI 自动理解意图。比如「宝钢的付款」「已逾期的付款」，秒出结果。</p></div>
+    <div class="card"><div class="card-icon" style="background:#d1fae5;">⚡</div><h3>12 家真实供应商</h3><p>基于博西家电实际业务场景，涵盖加西贝拉、宝钢、巴斯夫、英飞凌等核心供应商。</p></div>
+    <div class="card"><div class="card-icon" style="background:#fef3c7;">📊</div><h3>智能统计分析</h3><p>自动汇总付款金额、状态分布、逾期预警，为管理决策提供数据支撑。</p></div>
+    <div class="card"><div class="card-icon" style="background:#fce7f3;">🔌</div><h3>灵活集成</h3><p>标准 RESTful API，可无缝对接 SAP 等 ERP 系统，支持多种 AI 引擎。</p></div>
+  </div>
+  <div class="stats-grid">
+    <div class="stat-card"><div class="stat-num">27</div><div class="stat-lbl">付款记录</div></div>
+    <div class="stat-card"><div class="stat-num">12</div><div class="stat-lbl">核心供应商</div></div>
+    <div class="stat-card"><div class="stat-num">¥2.8亿</div><div class="stat-lbl">付款总额</div></div>
+    <div class="stat-card"><div class="stat-num">AI</div><div class="stat-lbl">自动化引擎</div></div>
+  </div>
+</section>
+
+<section class="demo-section" id="demo">
+  <div class="demo-inner">
+    <div class="section-title"><h2>功能演示</h2><p>输入中文即可查询</p></div>
+    <div class="slides">
+      <div class="s"><div class="tag">🏭 场景一 · 按供应商</div><h2>「加西贝拉的付款」</h2><p>AI 自动识别供应商，返回所有压缩机采购付款记录，包含金额、到期日、审批状态。</p></div>
+      <div class="s"><div class="tag">⚠️ 场景二 · 风险预警</div><h2>「已逾期的付款」</h2><p>列出所有超期未付记录，帮助财务第一时间处理逾期风险，避免断供。</p></div>
+      <div class="s"><div class="tag">📈 场景三 · 组合查询</div><h2>「采购部申请且金额超过500万的付款」</h2><p>AI 自动理解多条件组合逻辑，精准筛选。</p></div>
+      <div class="s"><div class="tag">🏗️ 场景四 · 原材料</div><h2>「宝钢和巴斯夫的付款」</h2><p>同时查询钢材和塑料两大核心原材料的付款情况。</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="tech">
+  <div class="section-title"><h2>技术架构</h2><p>轻量高效，企业级可靠</p></div>
+  <div class="arch-row"><div class="arch-box l">🌐 Web UI</div><div class="arch-arrow">→</div><div class="arch-box p">⚡ FastAPI</div><div class="arch-arrow">→</div><div class="arch-box w">🤖 DeepSeek AI</div><div class="arch-arrow">→</div><div class="arch-box s">🗄️ SQLite</div></div>
+  <p style="text-align:center;margin-top:20px;color:#64748b;font-size:13px;">Python 3.12 · FastAPI · SQLAlchemy · DeepSeek API</p>
+</section>
+
+<section class="cta"><h2>准备好体验了吗？</h2><p>无需安装，立即在线体验</p><a href="http://43.156.67.190:18000" target="_blank" class="btn btn-primary" style="font-size:16px;padding:16px 36px;">🚀 开始使用</a></section>
+<footer><p>BSH 博西家电 · 供应商付款智能查询系统 · 2026</p></footer>
+<script>
+window.addEventListener('scroll',()=>{document.getElementById('navbar').classList.toggle('scrolled',window.scrollY>60)});
+const o=new IntersectionObserver(e=>{e.forEach(e=>{e.isIntersecting&&(e.target.style.opacity='1',e.target.style.transform='translateY(0)')})},{threshold:.1});
+document.querySelectorAll('.card,.s,.stat-card').forEach(e=>{e.style.opacity='0',e.style.transform='translateY(20px)',e.style.transition='all 0.6s ease',o.observe(e)});
+</script>
+</body>
+</html>

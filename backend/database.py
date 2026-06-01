@@ -9,7 +9,10 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///data/payments.db")
+# Use absolute path for the DB - stored in backend directory
+_db_dir = os.path.join(os.path.dirname(__file__))
+_db_path = os.path.join(_db_dir, "payments.db")
+DATABASE_URL = os.getenv("DATABASE_URL", f"sqlite:///{_db_path}")
 # SQLite WAL mode for better concurrent reads
 _extra = {"connect_args": {"check_same_thread": False}} if "sqlite" in DATABASE_URL else {}
 
