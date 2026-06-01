@@ -3,313 +3,347 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>博西家电 · 供应商全球地图</title>
+  <title>全球 GDP 3D 地球仪</title>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Inter', sans-serif; overflow: hidden; background: #0a0e1a; }
-    #cesiumContainer { width: 100vw; height: 100vh; }
+    body { background: #0a0e1a; overflow: hidden; font-family: -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif; }
+    #globe-container { width: 100vw; height: 100vh; }
 
-    /* Title overlay */
+    /* Title */
     .title-overlay {
       position: fixed; top: 30px; left: 50%; transform: translateX(-50%);
-      z-index: 100; text-align: center; pointer-events: none;
+      z-index: 10; text-align: center; pointer-events: none;
     }
     .title-overlay h1 {
-      font-size: 28px; font-weight: 800; color: #fff;
-      text-shadow: 0 2px 20px rgba(0,0,0,0.7);
+      font-size: 26px; font-weight: 700; color: #fff;
+      text-shadow: 0 2px 20px rgba(0,0,0,0.8);
       letter-spacing: 2px;
     }
     .title-overlay p {
-      font-size: 13px; color: rgba(255,255,255,0.6); margin-top: 4px;
-      text-shadow: 0 1px 10px rgba(0,0,0,0.5);
+      font-size: 13px; color: rgba(255,255,255,0.5); margin-top: 4px;
     }
+
+    /* Tooltip */
+    .tooltip {
+      position: fixed; z-index: 100;
+      background: rgba(10,14,26,0.92); backdrop-filter: blur(12px);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 12px; padding: 14px 18px;
+      color: #fff; font-size: 13px;
+      pointer-events: none; opacity: 0;
+      transition: opacity 0.2s; max-width: 260px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    }
+    .tooltip.visible { opacity: 1; }
+    .tooltip .country { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
+    .tooltip .gdp { font-size: 14px; color: #50e3c2; font-weight: 600; }
+    .tooltip .rank { font-size: 11px; color: rgba(255,255,255,0.4); margin-top: 2px; }
+    .tooltip .gdp-change { font-size: 11px; margin-top: 2px; }
 
     /* Legend */
     .legend {
       position: fixed; bottom: 40px; left: 50%; transform: translateX(-50%);
-      z-index: 100; display: flex; gap: 20px; align-items: center;
+      z-index: 10; display: flex; align-items: center; gap: 12px;
       background: rgba(10,14,26,0.85); backdrop-filter: blur(10px);
-      padding: 10px 24px; border-radius: 12px;
-      border: 1px solid rgba(255,255,255,0.08);
+      padding: 10px 20px; border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.06);
       pointer-events: none;
     }
-    .legend-item {
-      display: flex; align-items: center; gap: 6px; color: rgba(255,255,255,0.7);
-      font-size: 11px; font-weight: 500;
-    }
-    .legend-dot {
-      width: 10px; height: 10px; border-radius: 50%;
-      border: 1.5px solid rgba(255,255,255,0.3);
-    }
+    .legend-item { display: flex; align-items: center; gap: 6px; color: rgba(255,255,255,0.6); font-size: 11px; }
+    .legend-gradient { width: 120px; height: 8px; border-radius: 4px; background: linear-gradient(to right, #ff6b35, #f7c948, #50e3c2, #4a90d9); }
+    .legend-label { color: rgba(255,255,255,0.35); font-size: 10px; }
 
-    /* Info panel */
-    .info-panel {
-      position: fixed; right: 20px; top: 50%; transform: translateY(-50%);
-      z-index: 100; width: 260px;
+    /* Side panel for BSH suppliers */
+    .bsh-panel {
+      position: fixed; right: 16px; bottom: 80px;
+      z-index: 10;
       background: rgba(10,14,26,0.88); backdrop-filter: blur(12px);
-      border: 1px solid rgba(255,255,255,0.08); border-radius: 14px;
-      padding: 18px; max-height: 65vh; overflow-y: auto;
-      transition: all 0.3s ease;
+      border: 1px solid rgba(255,255,255,0.06); border-radius: 12px;
+      padding: 14px 16px; min-width: 140px;
     }
-    .info-panel::-webkit-scrollbar { width: 3px; }
-    .info-panel::-webkit-scrollbar-track { background: transparent; }
-    .info-panel::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 3px; }
-
-    .info-panel h3 {
-      font-size: 14px; font-weight: 700; color: #fff;
-      margin-bottom: 12px; letter-spacing: 1px;
-    }
-
-    .supplier-list { list-style: none; }
-    .supplier-item {
-      padding: 8px 10px; margin-bottom: 4px; border-radius: 8px;
-      cursor: pointer; transition: all 0.2s;
-      border-left: 3px solid transparent;
-    }
-    .supplier-item:hover {
-      background: rgba(255,255,255,0.05);
-    }
-    .supplier-name {
-      font-size: 12px; font-weight: 600; color: rgba(255,255,255,0.85);
-    }
-    .supplier-amount {
-      font-size: 11px; color: rgba(255,255,255,0.45); margin-top: 1px;
-    }
-    .supplier-item.active { border-left-color: currentColor; }
-
-    /* Collapse button */
-    .panel-toggle {
-      position: fixed; right: 20px; bottom: 90px; z-index: 101;
-      width: 36px; height: 36px; border-radius: 10px;
-      background: rgba(10,14,26,0.85); backdrop-filter: blur(10px);
-      border: 1px solid rgba(255,255,255,0.08);
-      color: #fff; font-size: 16px; cursor: pointer;
-      display: flex; align-items: center; justify-content: center;
-      transition: all 0.2s;
-    }
-    .panel-toggle:hover { background: rgba(255,255,255,0.1); }
-
-    @media (max-width: 768px) {
-      .info-panel { right: 10px; width: 200px; font-size: 11px; }
-      .title-overlay h1 { font-size: 20px; }
-      .legend { flex-wrap: wrap; gap: 10px; padding: 8px 16px; bottom: 20px; }
+    .bsh-panel h4 { color: rgba(255,255,255,0.6); font-size: 10px; font-weight: 600; letter-spacing: 1px; margin-bottom: 8px; }
+    .bsh-panel .tag {
+      display: inline-block; padding: 2px 8px; border-radius: 4px;
+      font-size: 10px; font-weight: 600; margin: 2px 3px;
     }
   </style>
 </head>
 <body>
 
-<div id="cesiumContainer"></div>
+<div id="globe-container"></div>
 
 <!-- Title -->
 <div class="title-overlay">
-  <h1>🌍 博西家电供应商 · 供应链地图</h1>
-  <p>BSH Supplier Map — 12 家核心供应商 · 27 条付款记录 · 总金额 ¥27.9 亿</p>
+  <h1>🌍 全球 GDP · 3D 地球仪</h1>
+  <p>点击任意国家查看 GDP 数据 ｜ 灰色 = 数据暂缺 ｜ 2024 年数据</p>
+</div>
+
+<!-- Tooltip -->
+<div class="tooltip" id="tooltip">
+  <div class="country" id="tipCountry">—</div>
+  <div class="gdp" id="tipGDP">—</div>
+  <div class="rank" id="tipRank">—</div>
+  <div class="gdp-change" id="tipChange">—</div>
 </div>
 
 <!-- Legend -->
 <div class="legend">
-  <span class="legend-item"><span class="legend-dot" style="background:#5b9cf5;"></span>零部件</span>
-  <span class="legend-item"><span class="legend-dot" style="background:#f5a623;"></span>原材料</span>
-  <span class="legend-item"><span class="legend-dot" style="background:#7ed321;"></span>物流</span>
-  <span class="legend-item"><span class="legend-dot" style="background:#e8505f;"></span>营销</span>
-  <span class="legend-item"><span class="legend-dot" style="background:#a775f5;"></span>IT/软件</span>
-  <span class="legend-item"><span class="legend-dot" style="background:#50e3c2;"></span>零售</span>
+  <span class="legend-label">低</span>
+  <div class="legend-gradient"></div>
+  <span class="legend-label">高</span>
+  <span class="legend-item" style="margin-left:12px;">GDP（美元）</span>
 </div>
 
-<!-- Side panel -->
-<div class="info-panel" id="infoPanel">
-  <h3>📦 供应商清单</h3>
-  <ul class="supplier-list" id="supplierList"></ul>
+<!-- BSH Suppliers toggle -->
+<div class="bsh-panel">
+  <h4>博西家电 · 供应商</h4>
+  <span class="tag" style="background:rgba(91,156,245,0.2);color:#5b9cf5;">+加西贝拉</span>
+  <span class="tag" style="background:rgba(245,166,35,0.2);color:#f5a623;">宝钢</span>
+  <span class="tag" style="background:rgba(126,211,33,0.2);color:#7ed321;">德迅</span>
+  <span class="tag" style="background:rgba(80,227,194,0.2);color:#50e3c2;">京东</span>
+  <span class="tag" style="background:rgba(167,117,245,0.2);color:#a775f5;">SAP</span>
+  <span class="tag" style="background:rgba(232,80,95,0.2);color:#e8505f;">奥美</span>
 </div>
-<button class="panel-toggle" id="panelToggle" title="折叠面板">◀</button>
 
-<!-- CesiumJS -->
-<link rel="stylesheet" href="https://unpkg.com/cesium@latest/Build/Cesium/Widgets/widgets.css">
-<script src="https://unpkg.com/cesium@latest/Build/Cesium/Cesium.js"></script>
+<!-- Libraries -->
+<script src="https://unpkg.com/globe.gl@2.34.0/dist/globe.gl.min.js"></script>
+<script src="https://unpkg.com/topojson-client@3"></script>
+<script src="https://d3js.org/d3-array.v2.min.js"></script>
 <script>
-const viewer = new Cesium.Viewer('cesiumContainer', {
-  imageryProvider: new Cesium.OpenStreetMapImageryProvider({
-    url: 'https://tile.openstreetmap.org/'
-  }),
-  terrain: Cesium.Terrain.fromWorldTerrain(),
-  // Fallback: if Ion token is unavailable, terrain will silently degrade
-  animation: false,
-  timeline: false,
-  fullscreenButton: false,
-  homeButton: false,
-  sceneModePicker: false,
-  baseLayerPicker: false,
-  navigationHelpButton: false,
-  infoBox: false,
-  selectionIndicator: false,
-  skyAtmosphere: true,
-  skyBox: false,
-});
-
-// Dark style
-viewer.scene.backgroundColor = Cesium.Color.fromCssColorString('#0a0e1a');
-viewer.scene.globe.baseColor = Cesium.Color.fromCssColorString('#1a1f2e');
-
-// --- Supplier Data ---
-const suppliers = [
-  { name: '加西贝拉压缩机有限公司', short: '加西贝拉', lat: 30.77, lng: 120.75, amount: 52800000, category: '零部件', color: '#5b9cf5', desc: '冰箱压缩机 · 年度框架协议', status: '★★★★★' },
-  { name: '宝山钢铁股份有限公司', short: '宝钢', lat: 31.41, lng: 121.38, amount: 98100000, category: '原材料', color: '#f5a623', desc: '家电钢板 · 冷轧卷材', status: '★★★★★' },
-  { name: '巴斯夫（中国）有限公司', short: '巴斯夫', lat: 31.22, lng: 121.54, amount: 22300000, category: '原材料', color: '#f5a623', desc: '化工材料 · 工程塑料', status: '★★★★☆' },
-  { name: '美的威灵电机技术有限公司', short: '威灵电机', lat: 23.03, lng: 113.12, amount: 25000000, category: '零部件', color: '#5b9cf5', desc: '直流变频电机', status: '★★★★☆' },
-  { name: '英飞凌科技（中国）有限公司', short: '英飞凌', lat: 31.23, lng: 121.47, amount: 22800000, category: '零部件', color: '#5b9cf5', desc: 'IGBT功率模块 · 芯片', status: '★★★☆☆' },
-  { name: '德迅中国货运有限公司', short: '德迅', lat: 31.23, lng: 121.48, amount: 21900000, category: '物流', color: '#7ed321', desc: '国际货运 · 供应链', status: '★★★★☆' },
-  { name: '京东家电', short: '京东', lat: 39.80, lng: 116.53, amount: 8700000, category: '零售', color: '#50e3c2', desc: '电商渠道 · 平台运营', status: '★★★★★' },
-  { name: '苏宁易购集团股份有限公司', short: '苏宁', lat: 32.06, lng: 118.78, amount: 4600000, category: '零售', color: '#50e3c2', desc: '线下渠道 · 门店展示', status: '★★★☆☆' },
-  { name: 'SAP（中国）有限公司', short: 'SAP', lat: 31.23, lng: 121.49, amount: 9000000, category: 'IT/软件', color: '#a775f5', desc: 'ERP系统 · S/4HANA', status: '★★★★☆' },
-  { name: '奥美整合行销集团', short: '奥美', lat: 39.91, lng: 116.46, amount: 8000000, category: '营销', color: '#e8505f', desc: '品牌营销 · 广告投放', status: '★★★☆☆' },
-  { name: '顺丰速运有限公司', short: '顺丰', lat: 22.54, lng: 114.06, amount: 4050000, category: '物流', color: '#7ed321', desc: '快递物流 · 仓储配送', status: '★★★★★' },
-  { name: '南京宁华供应链管理有限公司', short: '宁华', lat: 32.06, lng: 118.80, amount: 2100000, category: '物流', color: '#7ed321', desc: '仓储管理 · 供应链', status: '★★☆☆☆' },
+// =============================================
+//  GDP DATA  (countries + GDP in USD)
+// =============================================
+const gdpData = [
+  { country: 'United States', code: 'USA', gdp: 28781000, rank: 1, change: '+2.8%' },
+  { country: 'China', code: 'CHN', gdp: 18530000, rank: 2, change: '+5.0%' },
+  { country: 'Germany', code: 'DEU', gdp: 4590000, rank: 3, change: '-0.3%' },
+  { country: 'Japan', code: 'JPN', gdp: 4210000, rank: 4, change: '+1.9%' },
+  { country: 'India', code: 'IND', gdp: 4050000, rank: 5, change: '+7.2%' },
+  { country: 'United Kingdom', code: 'GBR', gdp: 3400000, rank: 6, change: '+1.0%' },
+  { country: 'France', code: 'FRA', gdp: 3130000, rank: 7, change: '+1.1%' },
+  { country: 'Italy', code: 'ITA', gdp: 2260000, rank: 8, change: '+0.7%' },
+  { country: 'Canada', code: 'CAN', gdp: 2220000, rank: 9, change: '+1.5%' },
+  { country: 'Brazil', code: 'BRA', gdp: 2170000, rank: 10, change: '+2.2%' },
+  { country: 'Russia', code: 'RUS', gdp: 2060000, rank: 11, change: '+3.0%' },
+  { country: 'South Korea', code: 'KOR', gdp: 1760000, rank: 12, change: '+2.0%' },
+  { country: 'Australia', code: 'AUS', gdp: 1720000, rank: 13, change: '+1.9%' },
+  { country: 'Mexico', code: 'MEX', gdp: 1790000, rank: 14, change: '+3.4%' },
+  { country: 'Spain', code: 'ESP', gdp: 1620000, rank: 15, change: '+2.5%' },
+  { country: 'Indonesia', code: 'IDN', gdp: 1470000, rank: 16, change: '+5.0%' },
+  { country: 'Netherlands', code: 'NLD', gdp: 1130000, rank: 17, change: '+1.2%' },
+  { country: 'Saudi Arabia', code: 'SAU', gdp: 1110000, rank: 18, change: '+1.4%' },
+  { country: 'Turkey', code: 'TUR', gdp: 1100000, rank: 19, change: '+4.0%' },
+  { country: 'Switzerland', code: 'CHE', gdp: 938000, rank: 20, change: '+1.5%' },
+  { country: 'Poland', code: 'POL', gdp: 842000, rank: 21, change: '+3.0%' },
+  { country: 'Taiwan', code: 'TWN', gdp: 810000, rank: 22, change: '+3.8%' },
+  { country: 'Belgium', code: 'BEL', gdp: 655000, rank: 23, change: '+1.4%' },
+  { country: 'Argentina', code: 'ARG', gdp: 640000, rank: 24, change: '-3.5%' },
+  { country: 'Sweden', code: 'SWE', gdp: 623000, rank: 25, change: '+0.8%' },
+  { country: 'Ireland', code: 'IRL', gdp: 590000, rank: 26, change: '+2.0%' },
+  { country: 'Norway', code: 'NOR', gdp: 580000, rank: 27, change: '+2.1%' },
+  { country: 'Austria', code: 'AUT', gdp: 526000, rank: 28, change: '+1.0%' },
+  { country: 'Thailand', code: 'THA', gdp: 515000, rank: 29, change: '+2.8%' },
+  { country: 'Israel', code: 'ISR', gdp: 510000, rank: 30, change: '+3.0%' },
+  { country: 'United Arab Emirates', code: 'ARE', gdp: 504000, rank: 31, change: '+3.9%' },
+  { country: 'Singapore', code: 'SGP', gdp: 501000, rank: 32, change: '+2.7%' },
+  { country: 'Vietnam', code: 'VNM', gdp: 470000, rank: 33, change: '+6.5%' },
+  { country: 'Philippines', code: 'PHL', gdp: 470000, rank: 34, change: '+5.7%' },
+  { country: 'Denmark', code: 'DNK', gdp: 420000, rank: 35, change: '+2.5%' },
+  { country: 'Malaysia', code: 'MYS', gdp: 416000, rank: 36, change: '+4.3%' },
+  { country: 'Bangladesh', code: 'BGD', gdp: 415000, rank: 37, change: '+6.2%' },
+  { country: 'Egypt', code: 'EGY', gdp: 398000, rank: 38, change: '+4.0%' },
+  { country: 'Colombia', code: 'COL', gdp: 390000, rank: 39, change: '+1.5%' },
+  { country: 'South Africa', code: 'ZAF', gdp: 380000, rank: 40, change: '+1.0%' },
+  { country: 'Hong Kong', code: 'HKG', gdp: 376000, rank: 41, change: '+3.0%' },
+  { country: 'Iran', code: 'IRN', gdp: 366000, rank: 42, change: '+2.5%' },
+  { country: 'Nigeria', code: 'NGA', gdp: 363000, rank: 43, change: '+2.8%' },
+  { country: 'Finland', code: 'FIN', gdp: 305000, rank: 44, change: '+1.3%' },
+  { country: 'Chile', code: 'CHL', gdp: 302000, rank: 45, change: '+2.0%' },
+  { country: 'Pakistan', code: 'PAK', gdp: 300000, rank: 46, change: '+3.5%' },
+  { country: 'Romania', code: 'ROU', gdp: 290000, rank: 47, change: '+2.8%' },
+  { country: 'Czech Republic', code: 'CZE', gdp: 280000, rank: 48, change: '+2.0%' },
+  { country: 'Portugal', code: 'PRT', gdp: 270000, rank: 49, change: '+1.5%' },
+  { country: 'Peru', code: 'PER', gdp: 268000, rank: 50, change: '+2.2%' },
+  { country: 'Kazakhstan', code: 'KAZ', gdp: 260000, rank: 51, change: '+4.0%' },
+  { country: 'Greece', code: 'GRC', gdp: 243000, rank: 52, change: '+1.8%' },
+  { country: 'Iraq', code: 'IRQ', gdp: 240000, rank: 53, change: '+3.5%' },
+  { country: 'New Zealand', code: 'NZL', gdp: 230000, rank: 54, change: '+1.0%' },
+  { country: 'Hungary', code: 'HUN', gdp: 210000, rank: 55, change: '+2.5%' },
+  { country: 'Ukraine', code: 'UKR', gdp: 200000, rank: 56, change: '+4.0%' },
+  { country: 'Qatar', code: 'QAT', gdp: 199000, rank: 57, change: '+2.0%' },
+  { country: 'Algeria', code: 'DZA', gdp: 195000, rank: 58, change: '+3.2%' },
+  { country: 'Kuwait', code: 'KWT', gdp: 185000, rank: 59, change: '+2.0%' },
+  { country: 'Morocco', code: 'MAR', gdp: 182000, rank: 60, change: '+3.5%' },
+  { country: 'Ethiopia', code: 'ETH', gdp: 180000, rank: 61, change: '+7.5%' },
+  { country: 'Slovakia', code: 'SVK', gdp: 140000, rank: 62, change: '+2.0%' },
+  { country: 'Cuba', code: 'CUB', gdp: 137000, rank: 63, change: '+1.5%' },
+  { country: 'Kenya', code: 'KEN', gdp: 135000, rank: 64, change: '+5.8%' },
+  { country: 'Ecuador', code: 'ECU', gdp: 130000, rank: 65, change: '+2.0%' },
+  { country: 'Dominican Republic', code: 'DOM', gdp: 125000, rank: 66, change: '+4.5%' },
+  { country: 'Angola', code: 'AGO', gdp: 120000, rank: 67, change: '+3.0%' },
+  { country: 'Oman', code: 'OMN', gdp: 116000, rank: 68, change: '+2.5%' },
+  { country: 'Guatemala', code: 'GTM', gdp: 112000, rank: 69, change: '+3.5%' },
+  { country: 'Bulgaria', code: 'BGR', gdp: 108000, rank: 70, change: '+2.8%' },
+  { country: 'Luxembourg', code: 'LUX', gdp: 86000, rank: 71, change: '+1.5%' },
+  { country: 'Panama', code: 'PAN', gdp: 85000, rank: 72, change: '+4.0%' },
+  { country: 'Ivory Coast', code: 'CIV', gdp: 84000, rank: 73, change: '+6.5%' },
+  { country: 'Croatia', code: 'HRV', gdp: 83000, rank: 74, change: '+2.5%' },
+  { country: 'Tanzania', code: 'TZA', gdp: 82000, rank: 75, change: '+5.8%' },
+  { country: 'Serbia', code: 'SRB', gdp: 78000, rank: 76, change: '+3.5%' },
+  { country: 'Lithuania', code: 'LTU', gdp: 77000, rank: 77, change: '+2.5%' },
+  { country: 'Ghana', code: 'GHA', gdp: 76000, rank: 78, change: '+5.0%' },
+  { country: 'Belarus', code: 'BLR', gdp: 74000, rank: 79, change: '+3.0%' },
+  { country: 'Slovenia', code: 'SVN', gdp: 72000, rank: 80, change: '+2.0%' },
+  { country: 'Azerbaijan', code: 'AZE', gdp: 70000, rank: 81, change: '+3.0%' },
+  { country: 'Uzbekistan', code: 'UZB', gdp: 68000, rank: 82, change: '+6.0%' },
+  { country: 'Myanmar', code: 'MMR', gdp: 67000, rank: 83, change: '+3.0%' },
+  { country: 'Libya', code: 'LBY', gdp: 65000, rank: 84, change: '+5.0%' },
+  { country: 'Costa Rica', code: 'CRI', gdp: 64000, rank: 85, change: '+3.5%' },
+  { country: 'Lebanon', code: 'LBN', gdp: 62000, rank: 86, change: '+1.5%' },
+  { country: 'Sudan', code: 'SDN', gdp: 60000, rank: 87, change: '+3.0%' },
+  { country: 'DR Congo', code: 'COD', gdp: 58000, rank: 88, change: '+6.2%' },
+  { country: 'Uruguay', code: 'URY', gdp: 57000, rank: 89, change: '+2.5%' },
+  { country: 'Macao', code: 'MAC', gdp: 56000, rank: 90, change: '+4.0%' },
+  { country: 'Cameroon', code: 'CMR', gdp: 54000, rank: 91, change: '+4.0%' },
+  { country: 'Puerto Rico', code: 'PRI', gdp: 53000, rank: 92, change: '+2.0%' },
+  { country: 'Nepal', code: 'NPL', gdp: 52000, rank: 93, change: '+4.5%' },
+  { country: 'Bolivia', code: 'BOL', gdp: 50000, rank: 94, change: '+3.0%' },
+  { country: 'Bahrain', code: 'BHR', gdp: 49000, rank: 95, change: '+2.5%' },
+  { country: 'Paraguay', code: 'PRY', gdp: 48000, rank: 96, change: '+3.8%' },
+  { country: 'Latvia', code: 'LVA', gdp: 47000, rank: 97, change: '+2.5%' },
+  { country: 'Syria', code: 'SYR', gdp: 45000, rank: 98, change: '+1.0%' },
+  { country: 'Estonia', code: 'EST', gdp: 44000, rank: 99, change: '+2.5%' },
+  { country: 'Cambodia', code: 'KHM', gdp: 43000, rank: 100, change: '+6.0%' },
 ];
 
-// --- Color mapping ---
-const categoryColors = {
-  '零部件': '#5b9cf5',
-  '原材料': '#f5a623',
-  '物流': '#7ed321',
-  '营销': '#e8505f',
-  'IT/软件': '#a775f5',
-  '零售': '#50e3c2',
-};
+// Build lookup map
+const gdpMap = {};
+gdpData.forEach(d => { gdpMap[d.code] = d; });
 
-// --- Add entities to globe ---
-const entities = [];
-suppliers.forEach((s, idx) => {
-  const color = Cesium.Color.fromCssColorString(s.color);
-  const position = Cesium.Cartesian3.fromDegrees(s.lng, s.lat, 0);
+// =============================================
+//  BSH Supplier markers
+// =============================================
+const bshSuppliers = [
+  { name: '加西贝拉', lat: 30.77, lng: 120.75, amount: '¥5,280万', color: '#5b9cf5' },
+  { name: '宝钢', lat: 31.41, lng: 121.38, amount: '¥9,810万', color: '#f5a623' },
+  { name: '巴斯夫', lat: 31.22, lng: 121.54, amount: '¥2,230万', color: '#f5a623' },
+  { name: '威灵电机', lat: 23.03, lng: 113.12, amount: '¥2,500万', color: '#5b9cf5' },
+  { name: '英飞凌', lat: 31.23, lng: 121.47, amount: '¥2,280万', color: '#5b9cf5' },
+  { name: '德迅', lat: 31.23, lng: 121.48, amount: '¥2,190万', color: '#7ed321' },
+  { name: '京东', lat: 39.80, lng: 116.53, amount: '¥870万', color: '#50e3c2' },
+  { name: '苏宁', lat: 32.06, lng: 118.78, amount: '¥460万', color: '#50e3c2' },
+  { name: 'SAP', lat: 31.23, lng: 121.49, amount: '¥900万', color: '#a775f5' },
+  { name: '奥美', lat: 39.91, lng: 116.46, amount: '¥800万', color: '#e8505f' },
+  { name: '顺丰', lat: 22.54, lng: 114.06, amount: '¥405万', color: '#7ed321' },
+  { name: '宁华', lat: 32.06, lng: 118.80, amount: '¥210万', color: '#7ed321' },
+];
 
-  // Billboard (pin)
-  const entity = viewer.entities.add({
-    name: s.name,
-    position: position,
-    billboard: {
-      image: Cesium.PinBuilder.fromColor(color, Cesium.PinBuilder.CHECKED),
-      verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
-      heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
-      scale: 1.0,
-      translucencyByDistance: new Cesium.NearFarScalar(2e5, 1.0, 5e6, 0.3),
-    },
-    label: {
-      text: s.short,
-      font: '14px Inter, sans-serif',
-      fillColor: Cesium.Color.WHITE,
-      outlineColor: Cesium.Color.fromCssColorString('#0a0e1a'),
-      outlineWidth: 2,
-      style: Cesium.LabelStyle.FILL_AND_OUTLINE,
-      verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
-      pixelOffset: new Cesium.Cartesian2(0, -32),
-      heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
-      translucencyByDistance: new Cesium.NearFarScalar(2e5, 1.0, 3e6, 0.0),
-    },
-    properties: { idx: idx },
+// =============================================
+//  Globe
+// =============================================
+const elem = document.getElementById('globe-container');
+const tooltip = document.getElementById('tooltip');
+const tipCountry = document.getElementById('tipCountry');
+const tipGDP = document.getElementById('tipGDP');
+const tipRank = document.getElementById('tipRank');
+const tipChange = document.getElementById('tipChange');
+
+const myGlobe = Globe()
+  .globeImageUrl('//unpkg.com/three-globe/example/img/earth-night.jpg')
+  .backgroundImageUrl('//unpkg.com/three-globe/example/img/night-sky.png')
+  .polygonCapColor((feat) => {
+    const code = feat.properties.ISO_A3;
+    const data = gdpMap[code];
+    if (!data) return 'rgba(255,255,255,0.04)'; // no data - dim
+    // Color gradient: red (low) -> yellow -> cyan -> blue (high)
+    const maxGdp = 28781000; // USA
+    const ratio = Math.log10(data.gdp) / Math.log10(maxGdp); // 0.77 to 1.0 range
+    const t = (ratio - 0.77) / 0.23; // normalize to 0-1
+    const r = Math.round(255 * (1 - t));
+    const g = Math.round(200 + 55 * t);
+    const b = Math.round(100 + 155 * t);
+    return `rgb(${r},${g},${b})`;
+  })
+  .polygonSideColor(() => 'rgba(255,255,255,0.02)')
+  .polygonStrokeColor(() => 'rgba(255,255,255,0.06)')
+  .polygonAltitude(() => 0.005)
+  .polygonLabel((feat) => {
+    const code = feat.properties.ISO_A3;
+    const data = gdpMap[code];
+    const name = feat.properties.NAME || code;
+    if (!data) return `<b>${name}</b><br>GDP: 数据暂缺`;
+    return `<b>${name}</b><br>GDP: $${(data.gdp / 10000).toFixed(2)}万亿<br>排名: #${data.rank} | 增长: ${data.change}`;
+  })
+  .onPolygonHover((feat) => {
+    if (!feat) {
+      tooltip.classList.remove('visible');
+      return;
+    }
+    const code = feat.properties.ISO_A3;
+    const data = gdpMap[code];
+    const name = feat.properties.NAME || code;
+    if (data) {
+      tipCountry.textContent = name;
+      tipGDP.textContent = `$${(data.gdp / 10000).toFixed(2)} 万亿 USD`;
+      tipRank.textContent = `全球第 ${data.rank} 位`;
+      tipChange.textContent = `同比增长 ${data.change}`;
+      tipChange.style.color = data.change.startsWith('+') ? '#50e3c2' : '#e8505f';
+    } else {
+      tipCountry.textContent = name;
+      tipGDP.textContent = 'GDP 数据暂缺';
+      tipRank.textContent = '';
+      tipChange.textContent = '';
+    }
+    tooltip.style.left = '50%';
+    tooltip.style.top = '40%';
+    tooltip.style.transform = 'translateX(-50%)';
+    tooltip.classList.add('visible');
+  })
+  .polygonsTransitionDuration(800)
+  .polygonMergeMode(true);
+
+// Load country polygons
+fetch('//unpkg.com/globe.gl@2.34.0/example/data/ne_110m_land.json')
+  .then(res => res.json())
+  .then(landData => {
+    // Convert to GeoJSON FeatureCollection
+    const features = landData.features.map(f => ({
+      type: 'Feature',
+      properties: { ISO_A3: f.properties?.ISO_A3 || f.properties?.ADM0_A3 || '???', NAME: f.properties?.NAME || '' },
+      geometry: f.geometry
+    }));
+    myGlobe.polygonsData({ type: 'FeatureCollection', features });
   });
 
-  // Pulse circle on ground
-  viewer.entities.add({
-    position: position,
-    ellipse: {
-      semiMinorAxis: 80000,
-      semiMajorAxis: 80000,
-      material: color.withAlpha(0.12),
-      heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
-    },
-  });
+// BSH supplier points
+myGlobe
+  .pointsData(bshSuppliers)
+  .pointLat(d => d.lat)
+  .pointLng(d => d.lng)
+  .pointColor(d => d.color)
+  .pointAltitude(0.02)
+  .pointRadius(0.15)
+  .pointLabel(d => `${d.name}<br>付款金额: ${d.amount}`)
+  .pointMerge(false);
 
-  entities.push(entity);
-});
+myGlobe(elem);
 
-// --- Fly to China on load ---
-viewer.camera.flyTo({
-  destination: Cesium.Cartesian3.fromDegrees(115.0, 30.0, 3500000),
-  orientation: { heading: Cesium.Math.toRadians(10), pitch: Cesium.Math.toRadians(-30), roll: 0 },
-  duration: 3,
-});
-
-// --- Build Side Panel ---
-const listEl = document.getElementById('supplierList');
-suppliers.forEach((s, idx) => {
-  const li = document.createElement('li');
-  li.className = 'supplier-item';
-  li.style.borderLeftColor = s.color;
-  li.innerHTML = `
-    <div class="supplier-name">${s.short}</div>
-    <div class="supplier-amount">¥${(s.amount / 10000).toFixed(0)}万 · ${s.desc}</div>
-  `;
-  li.addEventListener('click', () => {
-    // Fly to supplier
-    viewer.camera.flyTo({
-      destination: Cesium.Cartesian3.fromDegrees(s.lng, s.lat, 300000),
-      orientation: { heading: Cesium.Math.toRadians(0), pitch: Cesium.Math.toRadians(-45), roll: 0 },
-      duration: 1.5,
-    });
-    // Highlight in panel
-    document.querySelectorAll('.supplier-item').forEach(el => el.classList.remove('active'));
-    li.classList.add('active');
-  });
-  listEl.appendChild(li);
-});
-
-// --- Panel Toggle ---
-let panelVisible = true;
-document.getElementById('panelToggle').addEventListener('click', () => {
-  const panel = document.getElementById('infoPanel');
-  panelVisible = !panelVisible;
-  panel.style.display = panelVisible ? 'block' : 'none';
-  document.getElementById('panelToggle').textContent = panelVisible ? '◀' : '▶';
-});
-
-// --- Arc between top suppliers (宝钢→加西贝拉, 加西贝拉→威灵) ---
-function addArc(fromLng, fromLat, toLng, toLat, color) {
-  const positions = Cesium.Cartesian3.fromDegreesArrayHeights([
-    fromLng, fromLat, 5000,
-    (fromLng + toLng) / 2, (fromLat + toLat) / 2 + 3, 500000,
-    toLng, toLat, 5000,
-  ]);
-  viewer.entities.add({
-    polyline: {
-      positions: Cesium.Cartesian3.fromDegreesArray([
-        fromLng, fromLat, toLng, toLat
-      ]),
-      arcType: Cesium.ArcType.GEODESIC,
-      width: 1.5,
-      material: new Cesium.PolylineGlowMaterialProperty({
-        glowPower: 0.2,
-        color: Cesium.Color.fromCssColorString(color).withAlpha(0.25),
-      }),
-      clampToGround: true,
-    },
-  });
-}
-
-// Add some supply chain flow lines
-addArc(121.38, 31.41, 120.75, 30.77, '#f5a623');  // 宝钢→加西贝拉
-addArc(120.75, 30.77, 113.12, 23.03, '#5b9cf5');  // 加西贝拉→威灵电机
-addArc(121.54, 31.22, 121.47, 31.23, '#a775f5');  // 巴斯夫→SAP
-addArc(121.47, 31.23, 116.53, 39.80, '#50e3c2');  // 上海→京东
-
-// --- Auto-rotate globe slowly ---
+// Auto-rotate
 let isIdle = true;
-viewer.scene.preUpdate.addEventListener((scene, time) => {
-  if (isIdle) {
-    viewer.camera.rotate(Cesium.Cartesian3.UNIT_Z, 0.0001);
-  }
-});
-viewer.screenSpaceEventHandler.setInputAction(() => {
-  isIdle = false;
-  setTimeout(() => { isIdle = true; }, 5000);
-}, Cesium.ScreenSpaceEventType.LEFT_DOWN);
+myGlobe.controls().autoRotate = true;
+myGlobe.controls().autoRotateSpeed = 0.5;
 
-// --- Responsive ---
-window.addEventListener('resize', () => {
-  viewer.resize();
+document.addEventListener('mousedown', () => {
+  myGlobe.controls().autoRotate = false;
+});
+document.addEventListener('mouseup', () => {
+  setTimeout(() => { myGlobe.controls().autoRotate = true; }, 3000);
 });
 
-console.log('🌍 BSH Supplier Globe loaded!');
+// Resize
+window.addEventListener('resize', () => myGlobe(elem));
+
+console.log('🌍 Globe loaded!');
 </script>
 </body>
 </html>
