@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>博西家电 · 供应商全球地图</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Inter', sans-serif; overflow: hidden; background: #0a0e1a; }
+    #cesiumContainer { width: 100vw; height: 100vh; }
+
+    /* Title overlay */
+    .title-overlay {
+      position: fixed; top: 30px; left: 50%; transform: translateX(-50%);
+      z-index: 100; text-align: center; pointer-events: none;
+    }
+    .title-overlay h1 {
+      font-size: 28px; font-weight: 800; color: #fff;
+      text-shadow: 0 2px 20px rgba(0,0,0,0.7);
+      letter-spacing: 2px;
+    }
+    .title-overlay p {
+      font-size: 13px; color: rgba(255,255,255,0.6); margin-top: 4px;
+      text-shadow: 0 1px 10px rgba(0,0,0,0.5);
+    }
+
+    /* Legend */
+    .legend {
+      position: fixed; bottom: 40px; left: 50%; transform: translateX(-50%);
+      z-index: 100; display: flex; gap: 20px; align-items: center;
+      background: rgba(10,14,26,0.85); backdrop-filter: blur(10px);
+      padding: 10px 24px; border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.08);
+      pointer-events: none;
+    }
+    .legend-item {
+      display: flex; align-items: center; gap: 6px; color: rgba(255,255,255,0.7);
+      font-size: 11px; font-weight: 500;
+    }
+    .legend-dot {
+      width: 10px; height: 10px; border-radius: 50%;
+      border: 1.5px solid rgba(255,255,255,0.3);
+    }
+
+    /* Info panel */
+    .info-panel {
+      position: fixed; right: 20px; top: 50%; transform: translateY(-50%);
+      z-index: 100; width: 260px;
+      background: rgba(10,14,26,0.88); backdrop-filter: blur(12px);
+      border: 1px solid rgba(255,255,255,0.08); border-radius: 14px;
+      padding: 18px; max-height: 65vh; overflow-y: auto;
+      transition: all 0.3s ease;
+    }
+    .info-panel::-webkit-scrollbar { width: 3px; }
+    .info-panel::-webkit-scrollbar-track { background: transparent; }
+    .info-panel::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 3px; }
+
+    .info-panel h3 {
+      font-size: 14px; font-weight: 700; color: #fff;
+      margin-bottom: 12px; letter-spacing: 1px;
+    }
+
+    .supplier-list { list-style: none; }
+    .supplier-item {
+      padding: 8px 10px; margin-bottom: 4px; border-radius: 8px;
+      cursor: pointer; transition: all 0.2s;
+      border-left: 3px solid transparent;
+    }
+    .supplier-item:hover {
+      background: rgba(255,255,255,0.05);
+    }
+    .supplier-name {
+      font-size: 12px; font-weight: 600; color: rgba(255,255,255,0.85);
+    }
+    .supplier-amount {
+      font-size: 11px; color: rgba(255,255,255,0.45); margin-top: 1px;
+    }
+    .supplier-item.active { border-left-color: currentColor; }
+
+    /* Collapse button */
+    .panel-toggle {
+      position: fixed; right: 20px; bottom: 90px; z-index: 101;
+      width: 36px; height: 36px; border-radius: 10px;
+      background: rgba(10,14,26,0.85); backdrop-filter: blur(10px);
+      border: 1px solid rgba(255,255,255,0.08);
+      color: #fff; font-size: 16px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: all 0.2s;
+    }
+    .panel-toggle:hover { background: rgba(255,255,255,0.1); }
+
+    @media (max-width: 768px) {
+      .info-panel { right: 10px; width: 200px; font-size: 11px; }
+      .title-overlay h1 { font-size: 20px; }
+      .legend { flex-wrap: wrap; gap: 10px; padding: 8px 16px; bottom: 20px; }
+    }
+  </style>
+</head>
+<body>
+
+<div id="cesiumContainer"></div>
+
+<!-- Title -->
+<div class="title-overlay">
+  <h1>🌍 博西家电供应商 · 供应链地图</h1>
+  <p>BSH Supplier Map — 12 家核心供应商 · 27 条付款记录 · 总金额 ¥27.9 亿</p>
+</div>
+
+<!-- Legend -->
+<div class="legend">
+  <span class="legend-item"><span class="legend-dot" style="background:#5b9cf5;"></span>零部件</span>
+  <span class="legend-item"><span class="legend-dot" style="background:#f5a623;"></span>原材料</span>
+  <span class="legend-item"><span class="legend-dot" style="background:#7ed321;"></span>物流</span>
+  <span class="legend-item"><span class="legend-dot" style="background:#e8505f;"></span>营销</span>
+  <span class="legend-item"><span class="legend-dot" style="background:#a775f5;"></span>IT/软件</span>
+  <span class="legend-item"><span class="legend-dot" style="background:#50e3c2;"></span>零售</span>
+</div>
+
+<!-- Side panel -->
+<div class="info-panel" id="infoPanel">
+  <h3>📦 供应商清单</h3>
+  <ul class="supplier-list" id="supplierList"></ul>
+</div>
+<button class="panel-toggle" id="panelToggle" title="折叠面板">◀</button>
+
+<!-- CesiumJS -->
+<link rel="stylesheet" href="https://unpkg.com/cesium@latest/Build/Cesium/Widgets/widgets.css">
+<script src="https://unpkg.com/cesium@latest/Build/Cesium/Cesium.js"></script>
+<script>
+const viewer = new Cesium.Viewer('cesiumContainer', {
+  imageryProvider: new Cesium.OpenStreetMapImageryProvider({
+    url: 'https://tile.openstreetmap.org/'
+  }),
+  terrain: Cesium.Terrain.fromWorldTerrain(),
+  // Fallback: if Ion token is unavailable, terrain will silently degrade
+  animation: false,
+  timeline: false,
+  fullscreenButton: false,
+  homeButton: false,
+  sceneModePicker: false,
+  baseLayerPicker: false,
+  navigationHelpButton: false,
+  infoBox: false,
+  selectionIndicator: false,
+  skyAtmosphere: true,
+  skyBox: false,
+});
+
+// Dark style
+viewer.scene.backgroundColor = Cesium.Color.fromCssColorString('#0a0e1a');
+viewer.scene.globe.baseColor = Cesium.Color.fromCssColorString('#1a1f2e');
+
+// --- Supplier Data ---
+const suppliers = [
+  { name: '加西贝拉压缩机有限公司', short: '加西贝拉', lat: 30.77, lng: 120.75, amount: 52800000, category: '零部件', color: '#5b9cf5', desc: '冰箱压缩机 · 年度框架协议', status: '★★★★★' },
+  { name: '宝山钢铁股份有限公司', short: '宝钢', lat: 31.41, lng: 121.38, amount: 98100000, category: '原材料', color: '#f5a623', desc: '家电钢板 · 冷轧卷材', status: '★★★★★' },
+  { name: '巴斯夫（中国）有限公司', short: '巴斯夫', lat: 31.22, lng: 121.54, amount: 22300000, category: '原材料', color: '#f5a623', desc: '化工材料 · 工程塑料', status: '★★★★☆' },
+  { name: '美的威灵电机技术有限公司', short: '威灵电机', lat: 23.03, lng: 113.12, amount: 25000000, category: '零部件', color: '#5b9cf5', desc: '直流变频电机', status: '★★★★☆' },
+  { name: '英飞凌科技（中国）有限公司', short: '英飞凌', lat: 31.23, lng: 121.47, amount: 22800000, category: '零部件', color: '#5b9cf5', desc: 'IGBT功率模块 · 芯片', status: '★★★☆☆' },
+  { name: '德迅中国货运有限公司', short: '德迅', lat: 31.23, lng: 121.48, amount: 21900000, category: '物流', color: '#7ed321', desc: '国际货运 · 供应链', status: '★★★★☆' },
+  { name: '京东家电', short: '京东', lat: 39.80, lng: 116.53, amount: 8700000, category: '零售', color: '#50e3c2', desc: '电商渠道 · 平台运营', status: '★★★★★' },
+  { name: '苏宁易购集团股份有限公司', short: '苏宁', lat: 32.06, lng: 118.78, amount: 4600000, category: '零售', color: '#50e3c2', desc: '线下渠道 · 门店展示', status: '★★★☆☆' },
+  { name: 'SAP（中国）有限公司', short: 'SAP', lat: 31.23, lng: 121.49, amount: 9000000, category: 'IT/软件', color: '#a775f5', desc: 'ERP系统 · S/4HANA', status: '★★★★☆' },
+  { name: '奥美整合行销集团', short: '奥美', lat: 39.91, lng: 116.46, amount: 8000000, category: '营销', color: '#e8505f', desc: '品牌营销 · 广告投放', status: '★★★☆☆' },
+  { name: '顺丰速运有限公司', short: '顺丰', lat: 22.54, lng: 114.06, amount: 4050000, category: '物流', color: '#7ed321', desc: '快递物流 · 仓储配送', status: '★★★★★' },
+  { name: '南京宁华供应链管理有限公司', short: '宁华', lat: 32.06, lng: 118.80, amount: 2100000, category: '物流', color: '#7ed321', desc: '仓储管理 · 供应链', status: '★★☆☆☆' },
+];
+
+// --- Color mapping ---
+const categoryColors = {
+  '零部件': '#5b9cf5',
+  '原材料': '#f5a623',
+  '物流': '#7ed321',
+  '营销': '#e8505f',
+  'IT/软件': '#a775f5',
+  '零售': '#50e3c2',
+};
+
+// --- Add entities to globe ---
+const entities = [];
+suppliers.forEach((s, idx) => {
+  const color = Cesium.Color.fromCssColorString(s.color);
+  const position = Cesium.Cartesian3.fromDegrees(s.lng, s.lat, 0);
+
+  // Billboard (pin)
+  const entity = viewer.entities.add({
+    name: s.name,
+    position: position,
+    billboard: {
+      image: Cesium.PinBuilder.fromColor(color, Cesium.PinBuilder.CHECKED),
+      verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+      heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
+      scale: 1.0,
+      translucencyByDistance: new Cesium.NearFarScalar(2e5, 1.0, 5e6, 0.3),
+    },
+    label: {
+      text: s.short,
+      font: '14px Inter, sans-serif',
+      fillColor: Cesium.Color.WHITE,
+      outlineColor: Cesium.Color.fromCssColorString('#0a0e1a'),
+      outlineWidth: 2,
+      style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+      verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+      pixelOffset: new Cesium.Cartesian2(0, -32),
+      heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
+      translucencyByDistance: new Cesium.NearFarScalar(2e5, 1.0, 3e6, 0.0),
+    },
+    properties: { idx: idx },
+  });
+
+  // Pulse circle on ground
+  viewer.entities.add({
+    position: position,
+    ellipse: {
+      semiMinorAxis: 80000,
+      semiMajorAxis: 80000,
+      material: color.withAlpha(0.12),
+      heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
+    },
+  });
+
+  entities.push(entity);
+});
+
+// --- Fly to China on load ---
+viewer.camera.flyTo({
+  destination: Cesium.Cartesian3.fromDegrees(115.0, 30.0, 3500000),
+  orientation: { heading: Cesium.Math.toRadians(10), pitch: Cesium.Math.toRadians(-30), roll: 0 },
+  duration: 3,
+});
+
+// --- Build Side Panel ---
+const listEl = document.getElementById('supplierList');
+suppliers.forEach((s, idx) => {
+  const li = document.createElement('li');
+  li.className = 'supplier-item';
+  li.style.borderLeftColor = s.color;
+  li.innerHTML = `
+    <div class="supplier-name">${s.short}</div>
+    <div class="supplier-amount">¥${(s.amount / 10000).toFixed(0)}万 · ${s.desc}</div>
+  `;
+  li.addEventListener('click', () => {
+    // Fly to supplier
+    viewer.camera.flyTo({
+      destination: Cesium.Cartesian3.fromDegrees(s.lng, s.lat, 300000),
+      orientation: { heading: Cesium.Math.toRadians(0), pitch: Cesium.Math.toRadians(-45), roll: 0 },
+      duration: 1.5,
+    });
+    // Highlight in panel
+    document.querySelectorAll('.supplier-item').forEach(el => el.classList.remove('active'));
+    li.classList.add('active');
+  });
+  listEl.appendChild(li);
+});
+
+// --- Panel Toggle ---
+let panelVisible = true;
+document.getElementById('panelToggle').addEventListener('click', () => {
+  const panel = document.getElementById('infoPanel');
+  panelVisible = !panelVisible;
+  panel.style.display = panelVisible ? 'block' : 'none';
+  document.getElementById('panelToggle').textContent = panelVisible ? '◀' : '▶';
+});
+
+// --- Arc between top suppliers (宝钢→加西贝拉, 加西贝拉→威灵) ---
+function addArc(fromLng, fromLat, toLng, toLat, color) {
+  const positions = Cesium.Cartesian3.fromDegreesArrayHeights([
+    fromLng, fromLat, 5000,
+    (fromLng + toLng) / 2, (fromLat + toLat) / 2 + 3, 500000,
+    toLng, toLat, 5000,
+  ]);
+  viewer.entities.add({
+    polyline: {
+      positions: Cesium.Cartesian3.fromDegreesArray([
+        fromLng, fromLat, toLng, toLat
+      ]),
+      arcType: Cesium.ArcType.GEODESIC,
+      width: 1.5,
+      material: new Cesium.PolylineGlowMaterialProperty({
+        glowPower: 0.2,
+        color: Cesium.Color.fromCssColorString(color).withAlpha(0.25),
+      }),
+      clampToGround: true,
+    },
+  });
+}
+
+// Add some supply chain flow lines
+addArc(121.38, 31.41, 120.75, 30.77, '#f5a623');  // 宝钢→加西贝拉
+addArc(120.75, 30.77, 113.12, 23.03, '#5b9cf5');  // 加西贝拉→威灵电机
+addArc(121.54, 31.22, 121.47, 31.23, '#a775f5');  // 巴斯夫→SAP
+addArc(121.47, 31.23, 116.53, 39.80, '#50e3c2');  // 上海→京东
+
+// --- Auto-rotate globe slowly ---
+let isIdle = true;
+viewer.scene.preUpdate.addEventListener((scene, time) => {
+  if (isIdle) {
+    viewer.camera.rotate(Cesium.Cartesian3.UNIT_Z, 0.0001);
+  }
+});
+viewer.screenSpaceEventHandler.setInputAction(() => {
+  isIdle = false;
+  setTimeout(() => { isIdle = true; }, 5000);
+}, Cesium.ScreenSpaceEventType.LEFT_DOWN);
+
+// --- Responsive ---
+window.addEventListener('resize', () => {
+  viewer.resize();
+});
+
+console.log('🌍 BSH Supplier Globe loaded!');
+</script>
+</body>
+</html>
