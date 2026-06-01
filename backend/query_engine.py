@@ -42,10 +42,12 @@ TABLE_SCHEMA = """
   - 实际付款日期 (DATE, 可为空)
   - 收款银行 (TEXT)
   - 收款账户尾号 (TEXT)
-  - 申请部门 (TEXT)
+  - 申请部门 (TEXT, 可选值: 采购部, IT部, 市场部, 研发部, 供应链部, 售后部, 生产部)
   - 申请人 (TEXT)
   - 审批状态 (TEXT, 可选值: 已通过, 待审批, 已驳回)
   - 备注 (TEXT)
+
+实际数据中的供应商: 宝山钢铁股份有限公司(宝钢), 加西贝拉压缩机有限公司(加西贝拉), 美的威灵电机技术有限公司(威灵电机), 英飞凌科技(英飞凌), 巴斯夫(巴斯夫), SAP(SAP), 德迅中国货运(德迅), 京东家电(京东), 苏宁易购(苏宁), 顺丰速运(顺丰), 奥美整合行销(奥美), 南京宁华供应链(宁华供应链)
 
 通用规则:
   - 日期筛选用 BETWEEN 或 >= <=
@@ -184,12 +186,21 @@ class QueryEngine:
                 )
 
         # ── 按供应商 ──
-        sup_names = ["华为", "腾讯云", "阿里云", "金蝶", "用友", "顺丰", "百度", "海康", "中兴", "联想"]
+        sup_names = ["宝钢", "加西贝拉", "威灵电机", "英飞凌", "巴斯夫", "SAP", "德迅", "京东", "苏宁", "顺丰", "奥美", "宁华"]
         for name in sup_names:
             if name in q:
                 return self._build_sql(
                     f"SELECT * FROM payments WHERE 供应商简称 LIKE '%{name}%' ORDER BY 付款到期日 DESC",
                     f"查询供应商「{name}」的付款记录",
+                )
+
+        # ── 按部门 ──
+        dept_names = {"采购": "采购部", "IT": "IT部", "市场": "市场部", "研发": "研发部", "供应链": "供应链部", "售后": "售后部", "生产": "生产部"}
+        for kw, dept in dept_names.items():
+            if kw in q:
+                return self._build_sql(
+                    f"SELECT * FROM payments WHERE 申请部门 = '{dept}' ORDER BY 付款到期日 DESC",
+                    f"查询部门「{dept}」的付款记录",
                 )
 
         # ── 按金额范围 ──
@@ -254,13 +265,11 @@ class QueryEngine:
         count = len(rows)
 
         # 尝试提取金额字段
-        has_amount = any(k in (rows[0].keys()) for k in ["付款金额", "总金额", "总笔数"])
+        amount_keys = [k for k in rows[0].keys() if any(w in k for w in ["金额", "总额"])]
+        has_amount = len(amount_keys) > 0
         total = None
         if has_amount:
-            if "总金额" in rows[0]:
-                total = rows[0]["总金额"]
-            elif "SUM" in sql.upper():
-                total = rows[0].get(list(rows[0].keys())[0])
+            total = rows[0][amount_keys[0]]
 
         # 转换为浮点数防止 SQLite 返回字符串导致格式化报错
         def _to_float(v):
@@ -277,13 +286,8 @@ class QueryEngine:
             total_count = rows[0]["总笔数"]
             return f"共查询到 {total_count} 条付款记录。"
 
-        if "SUM" in sql.upper() or any("金额" in k or "总额" in k for k in rows[0]):
-            # 找第一个金额相关的字段
-            amount_key = next((k for k in rows[0] if "金额" in k or "总额" in k), list(rows[0].keys())[0])
-            amount = rows[0].get(amount_key, 0)
-            return f"查询结果：总金额为 {_to_float(amount):,.2f} 元"
-
         if count <= 50:
+            # 非聚合查询：按状态汇总
             statuses = set(r.get("付款状态", "") for r in rows if "付款状态" in r)
             status_info = f"（包含状态: {', '.join(sorted(statuses))}）" if statuses else ""
             return f"共查询到 {count} 条付款记录{status_info}。如需明细请查看下方数据。"
