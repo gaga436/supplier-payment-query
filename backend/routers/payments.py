@@ -114,6 +114,100 @@ async def get_payment(payment_id: str, db: Session = Depends(get_db)):
     return p.to_dict()
 
 
+# ── 飞书机器人 Webhook ──
+
+class FeishuWebhookRequest(BaseModel):
+    """飞书自定义机器人/事件回调请求"""
+    challenge: Optional[str] = None
+    encrypt: Optional[str] = None
+    token: Optional[str] = None
+    type: Optional[str] = None
+    event: Optional[dict] = None
+    # 直接消息模式
+    msg_type: Optional[str] = None
+    content: Optional[dict] = None
+    # 简化模式
+    text: Optional[str] = None
+    question: Optional[str] = None
+
+
+class FeishuCardElement(BaseModel):
+    tag: str
+    text: Optional[dict] = None
+    content: Optional[str] = None
+
+
+@router.post("/feishu-webhook")
+async def feishu_webhook(req: FeishuWebhookRequest, db: Session = Depends(get_db)):
+    """
+    飞书机器人 Webhook 回调接口
+    ──────────────────────────────
+    支持双模式:
+    1. URL Challenge 验证（飞书事件订阅首次校验）
+    2. 消息查询（用户发消息给飞书机器人，自动查询付款信息）
+    """
+    # ── URL Challenge ──
+    if req.challenge:
+        return {"challenge": req.challenge}
+
+    # ── 提取用户问题 ──
+    question = None
+    if req.question:
+        question = req.question
+    elif req.text:
+        question = req.text
+    elif req.content and isinstance(req.content, dict):
+        question = req.content.get("text", "")
+    elif req.event and isinstance(req.event, dict):
+        msg = req.event.get("message", {})
+        content_raw = msg.get("content", "{}")
+        import json
+        try:
+            content_obj = json.loads(content_raw) if isinstance(content_raw, str) else content_raw
+            question = content_obj.get("text", "")
+        except (json.JSONDecodeError, TypeError):
+            pass
+
+    if not question:
+        return {"msg_type": "text", "content": {"text": "请发送付款查询问题，例如：本月付款总额是多少？"}}
+
+    # ── 执行查询 ──
+    engine = QueryEngine(db)
+    result = engine.ask(question)
+
+    # ── 构造返回消息 ──
+    if result.get("error"):
+        return {
+            "msg_type": "text",
+            "content": {"text": f"❌ 查询失败：{result['error']}"},
+        }
+
+    # 摘要 + 数据详情
+    lines = [f"🔍 *{result.get('explanation', '查询结果')}*"]
+    if result.get("summary"):
+        lines.append(f"\n📊 {result['summary']}")
+
+    data = result.get("data", [])
+    if data and len(data) <= 10:
+        lines.append("\n━━━━━━━━━━━━━━━")
+        for i, row in enumerate(data[:5], 1):
+            name = row.get("供应商简称") or row.get("供应商名称", "")
+            amount = row.get("付款金额", "")
+            status = row.get("付款状态", "")
+            dept = row.get("申请部门", "")
+            if amount:
+                lines.append(f"{i}. {name} | ¥{amount:,.0f} | {status} | {dept}")
+            else:
+                lines.append(f"{i}. {name} | {status}")
+        if len(data) > 5:
+            lines.append(f"\n... 还有 {len(data)-5} 条记录")
+
+    return {
+        "msg_type": "text",
+        "content": {"text": "\n".join(lines)},
+    }
+
+
 @router.get("/stats")
 async def get_stats(db: Session = Depends(get_db)):
     """付款统计概览"""
