@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>供应商付款查询系统 · 产品展示</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+:root {
+  --primary: #2563eb;
+  --primary-dark: #1e40af;
+  --primary-light: #60a5fa;
+  --accent: #06b6d4;
+  --success: #10b981;
+  --warning: #f59e0b;
+  --bg-dark: #0f172a;
+  --bg-card: #1e293b;
+  --bg-section: #f8fafc;
+  --text: #1e293b;
+  --text-light: #64748b;
+  --text-white: #f1f5f9;
+  --gradient: linear-gradient(135deg, #2563eb 0%, #06b6d4 100%);
+  --shadow: 0 20px 60px rgba(0,0,0,0.15);
+  --radius: 20px;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  background: #fff;
+  color: var(--text);
+  overflow-x: hidden;
+}
+
+/* === NAV === */
+nav {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  z-index: 100;
+  padding: 16px 48px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: all 0.3s;
+}
+nav.scrolled {
+  background: rgba(255,255,255,0.95);
+  backdrop-filter: blur(20px);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+}
+.nav-logo { font-weight: 700; font-size: 20px; color: var(--primary); }
+.nav-logo span { color: var(--accent); }
+.nav-links { display: flex; gap: 32px; align-items: center; }
+.nav-links a { text-decoration: none; color: var(--text-light); font-size: 14px; font-weight: 500; transition: color 0.2s; }
+.nav-links a:hover { color: var(--primary); }
+.btn-nav {
+  padding: 8px 20px;
+  background: var(--gradient);
+  color: white !important;
+  border-radius: 100px;
+  font-weight: 600 !important;
+}
+
+/* === HERO === */
+.hero {
+  min-height: 100vh;
+  background: var(--bg-dark);
+  background-image: radial-gradient(ellipse at 20% 50%, rgba(37,99,235,0.15) 0%, transparent 60%),
+                    radial-gradient(ellipse at 80% 20%, rgba(6,182,212,0.1) 0%, transparent 50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 120px 48px 80px;
+  position: relative;
+  overflow: hidden;
+}
+.hero::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  right: -20%;
+  width: 800px;
+  height: 800px;
+  background: radial-gradient(circle, rgba(37,99,235,0.08) 0%, transparent 70%);
+  border-radius: 50%;
+}
+.hero-content {
+  max-width: 1200px;
+  width: 100%;
+  text-align: center;
+  position: relative;
+  z-index: 1;
+}
+.hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 20px;
+  background: rgba(37,99,235,0.1);
+  border: 1px solid rgba(37,99,235,0.2);
+  border-radius: 100px;
+  color: var(--primary-light);
+  font-size: 13px;
+  font-weight: 500;
+  margin-bottom: 32px;
+  animation: fadeInUp 0.6s ease;
+}
+.hero-badge .dot {
+  width: 8px;
+  height: 8px;
+  background: var(--success);
+  border-radius: 50%;
+  animation: pulse 2s infinite;
+}
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+@keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+.hero h1 {
+  font-size: clamp(42px, 6vw, 72px);
+  font-weight: 800;
+  color: white;
+  line-height: 1.1;
+  margin-bottom: 24px;
+  animation: fadeInUp 0.6s ease 0.1s both;
+}
+.hero h1 span {
+  background: var(--gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.hero p {
+  font-size: clamp(16px, 2vw, 22px);
+  color: var(--text-light);
+  max-width: 640px;
+  margin: 0 auto 40px;
+  line-height: 1.6;
+  animation: fadeInUp 0.6s ease 0.2s both;
+}
+.hero-buttons {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  flex-wrap: wrap;
+  animation: fadeInUp 0.6s ease 0.3s both;
+}
+.btn {
+  padding: 14px 32px;
+  border-radius: 100px;
+  font-size: 15px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.3s;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.btn-primary {
+  background: var(--gradient);
+  color: white;
+  box-shadow: 0 4px 20px rgba(37,99,235,0.3);
+}
+.btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(37,99,235,0.4); }
+.btn-outline {
+  border: 1px solid rgba(255,255,255,0.2);
+  color: var(--text-white);
+}
+.btn-outline:hover { background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.3); }
+
+.hero-mockup {
+  margin-top: 60px;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 30px 80px rgba(0,0,0,0.4);
+  border: 1px solid rgba(255,255,255,0.05);
+  animation: fadeInUp 0.8s ease 0.4s both;
+}
+.hero-mockup video, .hero-mockup img {
+  width: 100%;
+  display: block;
+}
+
+/* === SECTIONS === */
+.section {
+  padding: 100px 48px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+.section-title {
+  text-align: center;
+  margin-bottom: 64px;
+}
+.section-title h2 {
+  font-size: 36px;
+  font-weight: 700;
+  margin-bottom: 16px;
+}
+.section-title p {
+  color: var(--text-light);
+  font-size: 18px;
+  max-width: 560px;
+  margin: 0 auto;
+  line-height: 1.6;
+}
+.section-title .accent {
+  display: inline-block;
+  background: var(--gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* === FEATURES === */
+.features-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 24px;
+}
+.feature-card {
+  background: white;
+  border-radius: var(--radius);
+  padding: 36px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  border: 1px solid #e2e8f0;
+  transition: all 0.3s;
+  position: relative;
+  overflow: hidden;
+}
+.feature-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 3px;
+  background: var(--gradient);
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+.feature-card:hover { transform: translateY(-4px); box-shadow: var(--shadow); }
+.feature-card:hover::before { opacity: 1; }
+.feature-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  margin-bottom: 20px;
+}
+.feature-card h3 { font-size: 18px; font-weight: 600; margin-bottom: 10px; }
+.feature-card p { font-size: 14px; color: var(--text-light); line-height: 1.7; }
+
+/* === DEMO === */
+.demo-section {
+  background: var(--bg-section);
+  padding: 100px 48px;
+}
+.demo-container {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+.demo-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 40px;
+  align-items: start;
+}
+@media (max-width: 900px) {
+  .demo-grid { grid-template-columns: 1fr; }
+}
+.demo-query-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.query-item {
+  background: white;
+  border-radius: 14px;
+  padding: 20px 24px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  border: 1px solid #e2e8f0;
+  cursor: pointer;
+  transition: all 0.3s;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.query-item:hover {
+  border-color: var(--primary-light);
+  box-shadow: 0 4px 12px rgba(37,99,235,0.1);
+  transform: translateX(4px);
+}
+.query-item .q-icon { font-size: 20px; flex-shrink: 0; }
+.query-item .q-text { font-weight: 500; flex: 1; }
+.query-item .q-arrow { color: var(--primary); font-size: 18px; }
+
+/* === ARCHITECTURE === */
+.arch-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+}
+.arch-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+.arch-box {
+  padding: 20px 32px;
+  border-radius: 14px;
+  font-weight: 600;
+  font-size: 15px;
+  text-align: center;
+  min-width: 140px;
+}
+.arch-box.primary { background: var(--primary); color: white; }
+.arch-box.light { background: #dbeafe; color: var(--primary-dark); }
+.arch-box.success { background: #d1fae5; color: #065f46; }
+.arch-box.warning { background: #fef3c7; color: #92400e; }
+.arch-arrow { font-size: 24px; color: var(--text-light); }
+.arch-label {
+  text-align: center;
+  margin-top: 40px;
+  color: var(--text-light);
+  font-size: 14px;
+  max-width: 500px;
+  line-height: 1.6;
+}
+
+/* === STATS === */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 24px;
+  margin-top: 60px;
+}
+.stat-card {
+  background: var(--bg-dark);
+  border-radius: var(--radius);
+  padding: 36px;
+  text-align: center;
+  color: white;
+}
+.stat-number {
+  font-size: 42px;
+  font-weight: 800;
+  background: var(--gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.stat-label { color: var(--text-light); font-size: 14px; margin-top: 8px; }
+
+/* === FOOTER === */
+footer {
+  background: var(--bg-dark);
+  color: var(--text-light);
+  text-align: center;
+  padding: 48px;
+  font-size: 14px;
+}
+
+/* === SLIDESHOW FOR VIDEO === */
+.slideshow {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.slide {
+  background: var(--bg-dark);
+  border-radius: 16px;
+  padding: 40px;
+  color: white;
+  min-height: 300px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.slide .slide-label {
+  color: var(--primary-light);
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  margin-bottom: 12px;
+}
+.slide h2 { font-size: 28px; margin-bottom: 16px; }
+.slide p { color: var(--text-light); line-height: 1.7; font-size: 15px; }
+
+@media (max-width: 640px) {
+  nav { padding: 12px 20px; }
+  .section, .demo-section { padding: 60px 20px; }
+  .hero { padding: 100px 20px 60px; }
+  .features-grid { grid-template-columns: 1fr; }
+  .stats-grid { grid-template-columns: 1fr 1fr; }
+}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav id="navbar">
+  <div class="nav-logo">Pay<span>Flow</span></div>
+  <div class="nav-links">
+    <a href="#features">功能</a>
+    <a href="#demo">演示</a>
+    <a href="#tech">技术架构</a>
+    <a href="http://43.156.67.190:18000" target="_blank" class="btn-nav">🚀 试用</a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-content">
+    <div class="hero-badge"><span class="dot"></span> AI 驱动 · 已上线运行</div>
+    <h1>供应商付款<br><span>智能查询系统</span></h1>
+    <p>告别繁琐的财务查询流程，用自然语言对话的方式，一秒获取供应商付款信息。AI 自动理解你的问题，实时返回精准结果。</p>
+    <div class="hero-buttons">
+      <a href="http://43.156.67.190:18000" target="_blank" class="btn btn-primary">✨ 立即体验</a>
+      <a href="#features" class="btn btn-outline">了解更多 →</a>
+    </div>
+  </div>
+</section>
+
+<!-- FEATURES -->
+<section class="section" id="features">
+  <div class="section-title">
+    <h2>核心功能</h2>
+    <p>四大能力，让财务查询效率提升 <strong class="accent">10 倍</strong></p>
+  </div>
+  <div class="features-grid">
+    <div class="feature-card">
+      <div class="feature-icon" style="background:#dbeafe;">🤖</div>
+      <h3>AI 自然语言查询</h3>
+      <p>直接输入中文问题，AI 自动理解意图并转化为精准 SQL 查询。无需学习复杂的查询语法。</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon" style="background:#d1fae5;">⚡</div>
+      <h3>实时数据响应</h3>
+      <p>基于 FastAPI 高性能框架，查询响应在毫秒级完成。支持 60+ 条付款记录秒级过滤。</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon" style="background:#fef3c7;">📊</div>
+      <h3>智能统计分析</h3>
+      <p>自动汇总付款总金额、各状态分布、逾期情况等关键指标，为管理决策提供数据支撑。</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon" style="background:#fce7f3;">🔌</div>
+      <h3>灵活集成方案</h3>
+      <p>提供标准 RESTful API，可无缝对接企业现有财务系统。支持 DeepSeek 及多种 AI 引擎。</p>
+    </div>
+  </div>
+
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-number">60</div>
+      <div class="stat-label">付款记录（可扩展）</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-number">10+</div>
+      <div class="stat-label">供应商覆盖</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-number">AI</div>
+      <div class="stat-label">自动化查询引擎</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-number">3s</div>
+      <div class="stat-label">平均响应时间</div>
+    </div>
+  </div>
+</section>
+
+<!-- DEMO -->
+<section class="demo-section" id="demo">
+  <div class="demo-container">
+    <div class="section-title">
+      <h2>功能演示</h2>
+      <p>输入中文，即可查询 — 看看它能做什么</p>
+    </div>
+    <div class="slideshow">
+      <div class="slide">
+        <div class="slide-label">📋 场景一</div>
+        <h2>按供应商查询</h2>
+        <p>输入「<strong>华为的付款有哪些？</strong>」，AI 自动识别供应商名称，精准返回华为技术有限公司的所有付款记录，包含金额、状态、到期日等完整信息。</p>
+      </div>
+      <div class="slide">
+        <div class="slide-label">⚠️ 场景二</div>
+        <h2>风险预警</h2>
+        <p>输入「<strong>已逾期的付款</strong>」，系统立即列出所有超过付款到期日仍未支付的记录，帮助财务人员第一时间处理逾期风险。</p>
+      </div>
+      <div class="slide">
+        <div class="slide-label">📈 场景三</div>
+        <h2>组合查询</h2>
+        <p>输入「<strong>IT部门申请且金额超过10万的已逾期付款</strong>」，AI 自动理解多条件组合逻辑，执行精确筛选。</p>
+      </div>
+      <div class="slide">
+        <div class="slide-label">🏢 场景四</div>
+        <h2>管理看板</h2>
+        <p>输入「<strong>本月付款总金额是多少？</strong>」，自动聚合统计，为管理层提供实时决策参考。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- TECH -->
+<section class="section" id="tech">
+  <div class="section-title">
+    <h2>技术架构</h2>
+    <p>轻量高效，企业级可靠</p>
+  </div>
+  <div class="arch-container">
+    <div class="arch-row">
+      <div class="arch-box light">🌐 Web UI</div>
+      <div class="arch-arrow">→</div>
+      <div class="arch-box primary">⚡ FastAPI</div>
+      <div class="arch-arrow">→</div>
+      <div class="arch-box warning">🤖 AI 引擎<br><small>DeepSeek / 规则</small></div>
+      <div class="arch-arrow">→</div>
+      <div class="arch-box success">🗄️ SQLite<br><small>付款数据</small></div>
+    </div>
+    <div class="arch-label">
+      <strong>技术栈：</strong> Python 3.12 · FastAPI · SQLAlchemy · DeepSeek API · HTML/CSS/JS
+    </div>
+  </div>
+
+  <div class="features-grid" style="margin-top: 60px;">
+    <div class="feature-card" style="border-left: 3px solid var(--primary);">
+      <h3>📦 零依赖部署</h3>
+      <p style="font-size:13px;">纯 Python 项目，pip install 即可运行。无需 Docker、Kubernetes 等复杂基础设施。</p>
+    </div>
+    <div class="feature-card" style="border-left: 3px solid var(--success);">
+      <h3>🔒 数据安全</h3>
+      <p style="font-size:13px;">本地 SQLite 存储，数据不出网。AI 查询支持私有化部署，满足企业合规要求。</p>
+    </div>
+    <div class="feature-card" style="border-left: 3px solid var(--warning);">
+      <h3>🔄 智能降级</h3>
+      <p style="font-size:13px;">AI 引擎不可用时自动降级为规则匹配模式，确保系统持续可用。</p>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section style="background:var(--bg-dark);padding:80px 48px;text-align:center;">
+  <h2 style="color:white;font-size:32px;margin-bottom:16px;">准备好体验了吗？</h2>
+  <p style="color:var(--text-light);margin-bottom:32px;">无需安装，立即在线体验供应商付款查询</p>
+  <a href="http://43.156.67.190:18000" target="_blank" class="btn btn-primary" style="font-size:18px;padding:16px 40px;">🚀 开始使用</a>
+</section>
+
+<footer>
+  <p>供应商付款查询系统 · 财务AI助手实习项目 · 2026</p>
+</footer>
+
+<script>
+// Navbar scroll effect
+window.addEventListener('scroll', () => {
+  document.getElementById('navbar').classList.toggle('scrolled', window.scrollY > 60);
+});
+
+// Fade-in on scroll
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      entry.target.style.opacity = '1';
+      entry.target.style.transform = 'translateY(0)';
+    }
+  });
+}, { threshold: 0.1 });
+
+document.querySelectorAll('.feature-card, .slide, .stat-card, .arch-box').forEach(el => {
+  el.style.opacity = '0';
+  el.style.transform = 'translateY(20px)';
+  el.style.transition = 'all 0.6s ease';
+  observer.observe(el);
+});
+</script>
+</body>
+</html>
