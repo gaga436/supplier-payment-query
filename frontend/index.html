@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>供应商付款查询助手 - Financial AI Assistant</title>
+<style>
+  :root {
+    --primary: #2563eb;
+    --primary-light: #3b82f6;
+    --primary-dark: #1d4ed8;
+    --bg: #f8fafc;
+    --card-bg: #ffffff;
+    --border: #e2e8f0;
+    --text: #1e293b;
+    --text-secondary: #64748b;
+    --success: #10b981;
+    --warning: #f59e0b;
+    --danger: #ef4444;
+    --radius: 12px;
+    --shadow: 0 1px 3px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0,0.06);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Header */
+  .header {
+    background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+    color: white;
+    padding: 16px 24px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    box-shadow: 0 2px 8px rgba(37,99,235,0.3);
+    z-index: 10;
+  }
+  .header-icon { font-size: 28px; }
+  .header h1 { font-size: 20px; font-weight: 600; letter-spacing: 0.5px; }
+  .header .subtitle { font-size: 13px; opacity: 0.85; margin-top: 2px; }
+  .header .status {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    background: rgba(255,255,255,0.15);
+    padding: 4px 12px;
+    border-radius: 20px;
+  }
+  .status-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--success);
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  /* Suggestion chips */
+  .suggestions {
+    padding: 12px 24px;
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    flex-shrink: 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .suggestions::-webkit-scrollbar { height: 0; }
+  .chip {
+    flex-shrink: 0;
+    padding: 6px 14px;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    font-size: 13px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+    background: white;
+  }
+  .chip:hover {
+    border-color: var(--primary);
+    color: var(--primary);
+    background: #eff6ff;
+  }
+
+  /* Chat area */
+  .chat-area {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .chat-area:empty::after {
+    content: '👋 试试点击上方问题，或在输入框输入你的查询';
+    display: block;
+    text-align: center;
+    color: var(--text-secondary);
+    font-size: 14px;
+    margin-top: 60px;
+  }
+
+  .msg {
+    max-width: 80%;
+    padding: 12px 16px;
+    border-radius: var(--radius);
+    line-height: 1.6;
+    font-size: 14px;
+    animation: fadeIn 0.3s ease;
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .msg.user {
+    align-self: flex-end;
+    background: var(--primary);
+    color: white;
+    border-bottom-right-radius: 4px;
+  }
+  .msg.assistant {
+    align-self: flex-start;
+    background: var(--card-bg);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-bottom-left-radius: 4px;
+    box-shadow: var(--shadow);
+  }
+  .msg.assistant .label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--primary);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 6px;
+  }
+  .msg.assistant .explanation {
+    color: var(--text-secondary);
+    font-size: 13px;
+    margin-bottom: 8px;
+    padding-bottom: 8px;
+    border-bottom: 1px dashed var(--border);
+  }
+  .msg.assistant .summary {
+    font-weight: 500;
+    margin-bottom: 8px;
+  }
+  .msg.assistant .sql-box {
+    background: #1e293b;
+    color: #e2e8f0;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 12px;
+    padding: 8px 12px;
+    border-radius: 6px;
+    margin: 8px 0;
+    overflow-x: auto;
+    cursor: pointer;
+    position: relative;
+  }
+  .msg.assistant .sql-box .copy-hint {
+    position: absolute;
+    top: 4px;
+    right: 8px;
+    font-size: 10px;
+    color: #94a3b8;
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+  .msg.assistant .sql-box:hover .copy-hint { opacity: 1; }
+
+  /* Data table */
+  .data-table-wrap {
+    overflow-x: auto;
+    margin-top: 8px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+  }
+  .data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    min-width: 600px;
+  }
+  .data-table th {
+    background: #f1f5f9;
+    padding: 8px 12px;
+    text-align: left;
+    font-weight: 600;
+    white-space: nowrap;
+    position: sticky;
+    top: 0;
+  }
+  .data-table td {
+    padding: 8px 12px;
+    border-top: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  .data-table tr:hover td { background: #f8fafc; }
+  .status-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+  }
+  .status-已付款 { background: #d1fae5; color: #065f46; }
+  .status-审批中, .status-待审批 { background: #fef3c7; color: #92400e; }
+  .status-已驳回, .status-已逾期 { background: #fee2e2; color: #991b1b; }
+  .status-处理中 { background: #dbeafe; color: #1e40af; }
+
+  .msg.error {
+    align-self: flex-start;
+    background: #fef2f2;
+    color: #991b1b;
+    border: 1px solid #fecaca;
+    border-bottom-left-radius: 4px;
+  }
+
+  /* Loading */
+  .loading {
+    align-self: flex-start;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 16px;
+    color: var(--text-secondary);
+    font-size: 14px;
+  }
+  .loading .spinner {
+    width: 16px; height: 16px;
+    border: 2px solid var(--border);
+    border-top-color: var(--primary);
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Input area */
+  .input-area {
+    padding: 12px 24px 16px;
+    border-top: 1px solid var(--border);
+    background: white;
+    display: flex;
+    gap: 8px;
+    align-items: flex-end;
+  }
+  .input-area textarea {
+    flex: 1;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 10px 14px;
+    font-size: 14px;
+    font-family: inherit;
+    resize: none;
+    outline: none;
+    min-height: 44px;
+    max-height: 120px;
+    transition: border-color 0.2s;
+  }
+  .input-area textarea:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+  }
+  .input-area .send-btn {
+    background: var(--primary);
+    color: white;
+    border: none;
+    border-radius: var(--radius);
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    flex-shrink: 0;
+  }
+  .input-area .send-btn:hover { background: var(--primary-dark); }
+  .input-area .send-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  /* Responsive */
+  @media (max-width: 640px) {
+    .header { padding: 12px 16px; }
+    .header h1 { font-size: 17px; }
+    .chat-area { padding: 12px 16px; }
+    .msg { max-width: 90%; }
+    .suggestions { padding: 10px 16px; }
+    .input-area { padding: 10px 16px 14px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-icon">💰</div>
+  <div>
+    <h1>供应商付款查询</h1>
+    <div class="subtitle">AI 财务智能助手 · 自然语言查询</div>
+  </div>
+  <div class="status">
+    <span class="status-dot"></span>
+    <span id="status-text">已连接</span>
+  </div>
+</div>
+
+<div class="suggestions" id="suggestions">
+  <div class="chip" onclick="ask('华为的付款有哪些？')">华为的付款</div>
+  <div class="chip" onclick="ask('本月到期的付款有多少笔？')">本月到期笔数</div>
+  <div class="chip" onclick="ask('已逾期的付款有多少？总额多少？')">逾期付款统计</div>
+  <div class="chip" onclick="ask('金额超过10万的待审批付款')">大额待审批</div>
+  <div class="chip" onclick="ask('腾讯云今年已付了多少钱？')">腾讯云已付</div>
+  <div class="chip" onclick="ask('采购部申请的付款记录')">采购部记录</div>
+  <div class="chip" onclick="ask('所有供应商付款总金额')">总金额</div>
+</div>
+
+<div class="chat-area" id="chat-area"></div>
+
+<div class="input-area">
+  <textarea id="input" rows="1" placeholder="输入你的查询，如「华为的付款有哪些？」" onkeydown="handleKey(event)"></textarea>
+  <button class="send-btn" id="send-btn" onclick="doSend()" disabled>
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <line x1="22" y1="2" x2="11" y2="13"></line>
+      <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+    </svg>
+  </button>
+</div>
+
+<script>
+const chatArea = document.getElementById('chat-area');
+const input = document.getElementById('input');
+const sendBtn = document.getElementById('send-btn');
+
+// Auto-resize textarea
+input.addEventListener('input', () => {
+  input.style.height = 'auto';
+  input.style.height = Math.min(input.scrollHeight, 120) + 'px';
+  sendBtn.disabled = !input.value.trim();
+});
+
+// Auto-send on Enter (Shift+Enter for newline)
+function handleKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    doSend();
+  }
+}
+
+function addMessage(content, type = 'assistant') {
+  const el = document.createElement('div');
+  el.className = `msg ${type}`;
+  el.innerHTML = content;
+  chatArea.appendChild(el);
+  el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  return el;
+}
+
+function addLoading() {
+  const el = document.createElement('div');
+  el.className = 'loading';
+  el.id = 'loading-msg';
+  el.innerHTML = '<div class="spinner"></div> AI 正在分析查询...';
+  chatArea.appendChild(el);
+  el.scrollIntoView({ behavior: 'smooth' });
+}
+
+function removeLoading() {
+  const el = document.getElementById('loading-msg');
+  if (el) el.remove();
+}
+
+function formatRow(row) {
+  const statusVal = row['付款状态'] || '';
+  const statusClass = 'status-' + statusVal.replace(/ /g, '');
+  const amount = typeof row['付款金额'] === 'number'
+    ? '¥' + row['付款金额'].toLocaleString('zh-CN', { minimumFractionDigits: 2 })
+    : (row['付款金额'] || '-');
+
+  let totalAmount = null;
+  if (row['总金额'] !== undefined) totalAmount = row['总金额'];
+  else {
+    const keys = Object.keys(row);
+    const amountKey = keys.find(k => k.includes('金额') || k.includes('总'));
+    if (amountKey) totalAmount = row[amountKey];
+  }
+
+  // Aggregate result
+  if (totalAmount !== null && Object.keys(row).length <= 2) {
+    return `<div style="font-size:24px;font-weight:700;padding:8px 0;text-align:center;color:var(--primary)">
+      ¥${Number(totalAmount).toLocaleString('zh-CN', { minimumFractionDigits: 2 })}
+    </div>`;
+  }
+  if (row['总笔数'] !== undefined) {
+    return `<div style="font-size:24px;font-weight:700;padding:8px 0;text-align:center;color:var(--primary)">
+      ${row['总笔数']} 笔
+    </div>`;
+  }
+
+  return `<tr>
+    <td>${row['付款编号'] || '-'}</td>
+    <td>${row['供应商简称'] || row['供应商名称'] || '-'}</td>
+    <td>${row['费用类型'] || '-'}</td>
+    <td style="font-weight:600">${amount}</td>
+    <td><span class="status-badge ${statusClass}">${statusVal || '-'}</span></td>
+    <td>${row['付款到期日'] || '-'}</td>
+    <td>${row['实际付款日期'] || '-'}</td>
+    <td>${row['申请部门'] || '-'}</td>
+    <td>${row['申请人'] || '-'}</td>
+  </tr>`;
+}
+
+function buildTable(data) {
+  if (!data || data.length === 0) return '<div style="padding:12px;color:var(--text-secondary);text-align:center">无数据</div>';
+
+  // Single aggregate value
+  if (data.length === 1) {
+    const keys = Object.keys(data[0]);
+    if (keys.length <= 2) {
+      return formatRow(data[0]);
+    }
+  }
+
+  const rows = data.map(formatRow).join('');
+  return `<div class="data-table-wrap"><table class="data-table">
+    <thead><tr>
+      <th>付款编号</th><th>供应商</th><th>费用类型</th><th>金额</th>
+      <th>状态</th><th>到期日</th><th>付款日</th><th>部门</th><th>申请人</th>
+    </tr></thead>
+    <tbody>${rows}</tbody>
+  </table></div>`;
+}
+
+function formatAssistantMsg(data) {
+  let html = '<div class="label">🔍 财务AI助手</div>';
+
+  if (data.explanation) {
+    html += `<div class="explanation">📋 ${data.explanation}</div>`;
+  }
+  if (data.summary) {
+    html += `<div class="summary">${data.summary}</div>`;
+  }
+  if (data.sql) {
+    html += `<div class="sql-box" onclick="copySql(this)">${data.sql.replace(/</g,'&lt;').replace(/>/g,'&gt;')}<span class="copy-hint">📋 复制SQL</span></div>`;
+  }
+  if (data.data && data.data.length > 0) {
+    html += buildTable(data.data);
+  }
+  if (data.data && data.data.length === 0 && !data.error) {
+    html += '<div style="padding:8px 0;color:var(--text-secondary)">未找到相关记录</div>';
+  }
+  return html;
+}
+
+function formatError(msg) {
+  return `<div style="font-weight:500">❌ 查询出错</div>
+    <div style="margin-top:4px">${msg.error || '未知错误，请重试'}</div>`;
+}
+
+async function ask(question) {
+  input.value = question;
+  doSend();
+}
+
+async function doSend() {
+  const text = input.value.trim();
+  if (!text) return;
+
+  addMessage(escapeHtml(text), 'user');
+  input.value = '';
+  input.style.height = '44px';
+  sendBtn.disabled = true;
+  addLoading();
+
+  try {
+    const resp = await fetch('/api/v1/query', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question: text, top_k: 50 }),
+    });
+    const data = await resp.json();
+
+    removeLoading();
+
+    if (data.error) {
+      addMessage(formatError(data), 'error');
+    } else {
+      addMessage(formatAssistantMsg(data));
+    }
+  } catch (err) {
+    removeLoading();
+    addMessage(formatError({ error: '网络错误: ' + err.message }), 'error');
+  }
+
+  chatArea.scrollTop = chatArea.scrollHeight;
+}
+
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+function copySql(el) {
+  const text = el.textContent.replace('📋 复制SQL', '').trim();
+  navigator.clipboard.writeText(text).then(() => {
+    const hint = el.querySelector('.copy-hint');
+    if (hint) hint.textContent = '✅ 已复制';
+    setTimeout(() => { if (hint) hint.textContent = '📋 复制SQL'; }, 2000);
+  });
+}
+
+// Initial welcome
+addMessage(`
+  <div class="label">💡 使用说明</div>
+  <div style="line-height:1.8">
+    <p>欢迎使用 <strong>AI 供应商付款查询系统</strong>！</p>
+    <p style="margin-top:6px">你可以用自然语言提问，例如：</p>
+    <ul style="padding-left:20px;margin:4px 0;color:var(--text-secondary)">
+      <li>"<strong>华为的付款有哪些？</strong>"</li>
+      <li>"<strong>本月已逾期的付款</strong>"</li>
+      <li>"<strong>腾讯云今年的付款总额</strong>"</li>
+      <li>"<strong>金额超过50万的已付款记录</strong>"</li>
+      <li>"<strong>采购部申请的待审批付款</strong>"</li>
+    </ul>
+    <p style="margin-top:6px;font-size:13px;color:var(--text-secondary)">
+      ⚡ 系统支持中英文混合查询，AI 自动将问题转换为 SQL<br>
+      点击上方快捷问题或直接输入即可开始
+    </p>
+  </div>
+`);
+</script>
+</body>
+</html>
